@@ -1,5 +1,39 @@
 #include <bits/stdc++.h>
 using namespace std;
+#include <iomanip>
+#include <chrono>
+
+// --------------------- Timer ---------------------
+using hires_clock = std::chrono::high_resolution_clock;
+using duration_ms = std::chrono::duration<double, std::milli>;
+
+struct Stopwatch {
+    hires_clock::time_point start;
+    Stopwatch() : start(hires_clock::now()) {}
+    void reset() { start = hires_clock::now(); }
+    double elapsed_ms() const {
+        return duration_ms(hires_clock::now() - start).count();
+    }
+};
+
+// Simple in-terminal progress bar
+void print_progress(double progress, const string& label) {
+    int bar_width = 40; // width of the bar
+    // Ensure progress is capped at 1.0
+    if (progress > 1.0) progress = 1.0;
+    if (progress < 0.0) progress = 0.0;
+    int pos = (int)(bar_width * progress);
+    
+    cerr << "  [";
+    for (int i = 0; i < bar_width; ++i) {
+        if (i < pos) cerr << "=";
+        else if (i == pos) cerr << ">";
+        else cerr << " ";
+    }
+    cerr << "] " << (int)(progress * 100.0 + 0.5) << "% "
+         << label << "                \r"; // Add padding and \r
+    cerr.flush();
+}
 
 // --------------------- Data structures ---------------------
 struct Point { int x{}, y{}; };
@@ -105,6 +139,7 @@ bool read_instance(const string& path, Instance& inst) {
 long long tour_edge_sum(const vector<int>& tour, const vector<vector<int>>& D) {
     long long s = 0;
     int m = (int)tour.size();
+    //if (m == 0) return 0;
     for (int i = 0; i < m; ++i) {
         int u = tour[i];
         int v = tour[(i+1)%m]; //this wraps last node to the first node
@@ -168,116 +203,116 @@ void insert_at(vector<T>& v, int pos, const T& val) {
 }
 
 
-// ------------------- Delta Calculations --------------------------------------
-// Intra-route two nodes exchange (swap positions of the nodes)
-long long delta_nodes_exchange(const vector<int>& tour, int i, int j, 
-                               const vector<vector<int>>& D) {
-    int m = (int)tour.size();
-    if (i == j) return 0;
-    if (i > j) swap(i, j);  // ensure i < j for better logic
+// // ------------------- Delta Calculations --------------------------------------
+// // Intra-route two nodes exchange (swap positions of the nodes)
+// long long delta_nodes_exchange(const vector<int>& tour, int i, int j, 
+//                                const vector<vector<int>>& D) {
+//     int m = (int)tour.size();
+//     if (i == j) return 0;
+//     if (i > j) swap(i, j);  // ensure i < j for better logic
     
-    // Special case: adjacent nodes (less computation)
-    if (j == i + 1) {
-        // Before: ... - tour[i-1] - tour[i] - tour[j] - tour[j+1] - ...
-        // After:  ... - tour[i-1] - tour[j] - tour[i] - tour[j+1] - ...
-        int prev = tour[(i - 1 + m) % m];
-        int next = tour[(j + 1) % m];
-        int ni = tour[i];
-        int nj = tour[j];
+//     // Special case: adjacent nodes (less computation)
+//     if (j == i + 1) {
+//         // Before: ... - tour[i-1] - tour[i] - tour[j] - tour[j+1] - ...
+//         // After:  ... - tour[i-1] - tour[j] - tour[i] - tour[j+1] - ...
+//         int prev = tour[(i - 1 + m) % m];
+//         int next = tour[(j + 1) % m];
+//         int ni = tour[i];
+//         int nj = tour[j];
         
-        long long old_cost = (long long)D[prev][ni] + D[ni][nj] + D[nj][next];
-        long long new_cost = (long long)D[prev][nj] + D[nj][ni] + D[ni][next];
-        return new_cost - old_cost;
-    }
+//         long long old_cost = (long long)D[prev][ni] + D[ni][nj] + D[nj][next];
+//         long long new_cost = (long long)D[prev][nj] + D[nj][ni] + D[ni][next];
+//         return new_cost - old_cost;
+//     }
     
-    // General case: non-adjacent nodes
-    // Before: ... - tour[i-1] - tour[i] - tour[i+1] - ... - tour[j-1] - tour[j] - tour[j+1] - ...
-    // After:  ... - tour[i-1] - tour[j] - tour[i+1] - ... - tour[j-1] - tour[i] - tour[j+1] - ...
-    int prev_i = tour[(i - 1 + m) % m];
-    int next_i = tour[(i + 1) % m];
-    int prev_j = tour[(j - 1 + m) % m];
-    int next_j = tour[(j + 1) % m];
-    int ni = tour[i];
-    int nj = tour[j];
+//     // General case: non-adjacent nodes
+//     // Before: ... - tour[i-1] - tour[i] - tour[i+1] - ... - tour[j-1] - tour[j] - tour[j+1] - ...
+//     // After:  ... - tour[i-1] - tour[j] - tour[i+1] - ... - tour[j-1] - tour[i] - tour[j+1] - ...
+//     int prev_i = tour[(i - 1 + m) % m];
+//     int next_i = tour[(i + 1) % m];
+//     int prev_j = tour[(j - 1 + m) % m];
+//     int next_j = tour[(j + 1) % m];
+//     int ni = tour[i];
+//     int nj = tour[j];
     
-    long long old_cost = (long long)D[prev_i][ni] + D[ni][next_i] + 
-                         D[prev_j][nj] + D[nj][next_j];
-    long long new_cost = (long long)D[prev_i][nj] + D[nj][next_i] + 
-                         D[prev_j][ni] + D[ni][next_j];
-    return new_cost - old_cost;
-}
+//     long long old_cost = (long long)D[prev_i][ni] + D[ni][next_i] + 
+//                          D[prev_j][nj] + D[nj][next_j];
+//     long long new_cost = (long long)D[prev_i][nj] + D[nj][next_i] + 
+//                          D[prev_j][ni] + D[ni][next_j];
+//     return new_cost - old_cost;
+// } //LOOKS GOOD
 
-//Intra-route 2 edges exchange (reverse segment between edges)
-long long delta_edges_exchange(const vector<int>& tour, int i, int j, 
-                               const vector<vector<int>>& D) {
-    int m = (int)tour.size();
-    if (i == j) return 0;
+// //Intra-route 2 edges exchange (reverse segment between edges)
+// long long delta_edges_exchange(const vector<int>& tour, int i, int j, 
+//                                const vector<vector<int>>& D) {
+//     int m = (int)tour.size();
+//     if (i == j) return 0;
     
-    // Ensure i < j and valid range
-    if (i > j) swap(i, j);
-    if (j - i == 1) return 0;  // adjacent edges, no change
+//     // Ensure i < j and valid range
+//     if (i > j) swap(i, j);
+//     if (j - i == 1) return 0;  // adjacent edges, no change
     
-    // Before: tour[i] - tour[i+1] - ... - tour[j] - tour[j+1]
-    // After:  tour[i] - tour[j] - ... - tour[i+1] - tour[j+1]
-    int ni = tour[i];
-    int ni_next = tour[(i + 1) % m];
-    int nj = tour[j];
-    int nj_next = tour[(j + 1) % m];
+//     // Before: tour[i] - tour[i+1] - ... - tour[j] - tour[j+1]
+//     // After:  tour[i] - tour[j] - ... - tour[i+1] - tour[j+1]
+//     int ni = tour[i];
+//     int ni_next = tour[(i + 1) % m];
+//     int nj = tour[j];
+//     int nj_next = tour[(j + 1) % m];
     
-    long long old_cost = (long long)D[ni][ni_next] + D[nj][nj_next];
-    long long new_cost = (long long)D[ni][nj] + D[ni_next][nj_next];
-    return new_cost - old_cost;
-}
+//     long long old_cost = (long long)D[ni][ni_next] + D[nj][nj_next];
+//     long long new_cost = (long long)D[ni][nj] + D[ni_next][nj_next];
+//     return new_cost - old_cost;
+// }
 
-//Inter-route (exchange 1 node in tour with 1 outside)
-long long delta_inter_exchange(const vector<int>& tour, int pos, 
-                               int node_out, const Instance& I) {
-    const auto& D = I.D;
-    const auto& C = I.cost;
-    int m = (int)tour.size();
+// //Inter-route (exchange 1 node in tour with 1 outside)
+// long long delta_inter_exchange(const vector<int>& tour, int pos, 
+//                                int node_out, const Instance& I) {
+//     const auto& D = I.D;
+//     const auto& C = I.cost;
+//     int m = (int)tour.size();
     
-    int node_in = tour[pos];
-    int prev = tour[(pos - 1 + m) % m];
-    int next = tour[(pos + 1) % m];
+//     int node_in = tour[pos];
+//     int prev = tour[(pos - 1 + m) % m];
+//     int next = tour[(pos + 1) % m];
     
-    // Edge cost change
-    long long old_edges = (long long)D[prev][node_in] + D[node_in][next];
-    long long new_edges = (long long)D[prev][node_out] + D[node_out][next];
+//     // Edge cost change
+//     long long old_edges = (long long)D[prev][node_in] + D[node_in][next];
+//     long long new_edges = (long long)D[prev][node_out] + D[node_out][next];
     
-    // Node cost change
-    long long cost_change = C[node_out] - C[node_in];
+//     // Node cost change
+//     long long cost_change = C[node_out] - C[node_in];
     
-    return (new_edges - old_edges) + cost_change;
-}
+//     return (new_edges - old_edges) + cost_change;
+// }
 
-// ------------------- Apply changes in cycle -------------------
-// Apply two-nodes exchange
-void apply_nodes_exchange(vector<int>& tour, int i, int j) {
-    swap(tour[i], tour[j]);
-}
+// // ------------------- Apply changes in cycle -------------------
+// // Apply two-nodes exchange
+// void apply_nodes_exchange(vector<int>& tour, int i, int j) {
+//     swap(tour[i], tour[j]);
+// }
 
-// Apply two-edges exchange (reverse segment)
-void apply_edges_exchange(vector<int>& tour, int i, int j) {
-    int m = (int)tour.size();
-    // Reverse segment from (i+1) to j inclusive
-    reverse(tour.begin() + i + 1, tour.begin() + j + 1);
-}
+// // Apply two-edges exchange (reverse segment)
+// void apply_edges_exchange(vector<int>& tour, int i, int j) {
+//     int m = (int)tour.size();
+//     // Reverse segment from (i+1) to j inclusive
+//     reverse(tour.begin() + i + 1, tour.begin() + j + 1);
+// }
 
-// Apply inter-route exchange
-void apply_inter_exchange(vector<int>& tour, int pos, int node_out) {
-    tour[pos] = node_out;
-}
+// // Apply inter-route exchange
+// void apply_inter_exchange(vector<int>& tour, int pos, int node_out) {
+//     tour[pos] = node_out;
+// }
 
-//  Move structure
-struct Move {
-    enum Type { INTRA_NODES, INTRA_EDGES, INTER } type;
-    int i, j;           // indices for intra moves, or pos + node_out for inter
-    long long delta;
+// //  Move structure
+// struct Move {
+//     enum Type { INTRA_NODES, INTRA_EDGES, INTER } type;
+//     int i, j;           // indices for intra moves, or pos + node_out for inter
+//     long long delta;
     
-    bool operator<(const Move& other) const {
-        return delta < other.delta;  // check if its smaller (minimum)
-    }
-};
+//     bool operator<(const Move& other) const {
+//         return delta < other.delta;  // check if its smaller (minimum)
+//     }
+// };
 
 
 // --------------------- Heuristics ---------------------
@@ -707,8 +742,255 @@ vector<int> greed_cycle_regret2_weighted(const Instance& I, int start, mt19937& 
 
 
 // ---------------------------------- LOCAL SEARCH -------------------------------------------------
-// Steep local search
-// : Evaluate all moves. Choose the best one
+// ----- LS HELPERS -----
+struct LSHelpers {
+    int K, N;
+    vector<int>& tour; // Reference to the tour vector
+    vector<int> pos;   // pos[node_id] -> index in tour, or -1 if not in tour
+    vector<bool> in_tour; // in_tour[node_id] -> true if in tour
+
+    LSHelpers(int n, int k, vector<int>& t) : N(n), K(k), tour(t), pos(n, -1), in_tour(n, false) {
+        build();
+    }
+    
+    void build() {
+        fill(pos.begin(), pos.end(), -1);
+        fill(in_tour.begin(), in_tour.end(), false);
+        for (int i = 0; i < K; ++i) {
+            int node = tour[i];
+            pos[node] = i;
+            in_tour[node] = true;
+        }
+    }
+};
+
+// Delta: Inter-route calculation (swap node u and v (not in tour
+static long long delta_inter_exchange(int u, int v, const LSHelpers& h, const Instance& I) {
+    const auto& D = I.D; const auto& C = I.cost;
+    int K = h.K;
+    int i = h.pos[u]; // position of u in tour
+    
+    int prev_u = h.tour[(i - 1 + K) % K];
+    int next_u = h.tour[(i + 1) % K];
+
+    long long cost_delta = (long long)C[v] - C[u];
+    long long edge_delta = (long long)D[prev_u][v] + D[v][next_u] 
+                         - D[prev_u][u] - D[u][next_u];
+
+    return cost_delta + edge_delta;
+} 
+
+// Delta: Intra-route (Node exchange) [Swap node u and v]---
+static long long delta_intra_exchange_nodes(int i, int j, const LSHelpers& h, const Instance& I) {
+    const auto& D = I.D;
+    int K = h.K;
+    if (i == j) return 0;
+    if (j < i) swap(i, j); // ensure i < j
+
+    int u = h.tour[i];
+    int v = h.tour[j];
+
+    int prev_i = h.tour[(i - 1 + K) % K];
+    int next_i = h.tour[(i + 1) % K];
+    int prev_j = h.tour[(j - 1 + K) % K];
+    int next_j = h.tour[(j + 1) % K];
+
+    long long delta = 0;
+
+    if (j == i + 1) { // Adjacent nodes
+        // Original: (prev_i) -> u -> v -> (next_j)
+        // New:      (prev_i) -> v -> u -> (next_j)
+        delta = (long long)D[prev_i][v] + D[v][u] + D[u][next_j]
+              - D[prev_i][u] - D[u][v] - D[v][next_j];
+    } else if (i == 0 && j == K - 1) { // Adjacent at beginning/end of the tour
+        // Original: (prev_i=v) -> u -> (next_i) ... (prev_j) -> v -> (next_j=u)
+        // We are swapping u (at 0) and v (at K-1)
+        // prev_j is node at K-2, next_i is node at 1
+        // Original edges: (prev_j) -> v, v -> u, u -> (next_i)
+        // New edges:      (prev_j) -> u, u -> v, v -> (next_i)
+        delta = (long long)D[prev_j][u] + D[u][v] + D[v][next_i]
+              - D[prev_j][v] - D[v][u] - D[u][next_i];
+    }
+    else { // Non-adjacent nodes
+        // Original: (prev_i) -> u -> (next_i) ... (prev_j) -> v -> (next_j)
+        // New:      (prev_i) -> v -> (next_i) ... (prev_j) -> u -> (next_j)
+        delta = (long long)D[prev_i][v] + D[v][next_i] + D[prev_j][u] + D[u][next_j]
+              - D[prev_i][u] - D[u][next_i] - D[prev_j][v] - D[v][next_j];
+    }
+    return delta;
+}
+
+// Delta: Intra-route (Edge exchange) [break and reconnect edges [i,i+1], [j,j+1]]
+static long long delta_intra_exchange_edges_2opt(int i, int j, const LSHelpers& h, const Instance& I) {
+    const auto& D = I.D;
+    int K = h.K;
+    if (j < i) swap(i, j); // ensure i < j
+
+    int u = h.tour[i];
+    int v = h.tour[(i + 1) % K];
+    int x = h.tour[j];
+    int y = h.tour[(j + 1) % K];
+
+    // No need to swap adjacent edges
+    if (v == x || u == y) return 0;
+
+    // Original: (u) -> (v) ... (x) -> (y)
+    // New:      (u) -> (x) ... (v) -> (y)
+    long long delta = (long long)D[u][x] + D[v][y] - D[u][v] - D[x][y];
+    return delta;
+}
+
+// Applications of moves
+static void apply_inter_exchange(LSHelpers& h, int u, int v) {
+    int i = h.pos[u];
+    
+    h.tour[i] = v; // Put v in u's spot
+    
+    h.pos[u] = -1;
+    h.in_tour[u] = false;  //Delete u from tour
+    h.pos[v] = i;
+    h.in_tour[v] = true;   //Add v to tour
+}
+
+static void apply_intra_exchange_nodes(LSHelpers& h, int i, int j) {
+    int u = h.tour[i];
+    int v = h.tour[j];
+
+    swap(h.tour[i], h.tour[j]);  //Perform simple swap of nodes
+    
+    h.pos[u] = j;
+    h.pos[v] = i;
+}
+
+static void apply_intra_exchange_edges_2opt(LSHelpers& h, int i, int j) {
+    int K = h.K;
+    if (j < i) swap(i, j);
+
+    int start = (i + 1) % K;
+    int end = j;
+
+    // Reverse the segment
+    while (start != end) {
+        int u = h.tour[start];
+        int v = h.tour[end];
+
+        swap(h.tour[start], h.tour[end]);
+        h.pos[u] = end;
+        h.pos[v] = start;
+
+        start = (start + 1) % K;
+        if (start == end) break;
+        end = (end - 1 + K) % K;
+    }
+}
+
+enum IntraMoveType { NODE_EXCHANGE, EDGE_EXCHANGE_2OPT };
+
+// ---- Steep Local Search ----
+// Evaluate all moves. Choose the best one ()
+vector<int> local_search_steepest(
+    const vector<int>& initial_tour, 
+    const Instance& I, 
+    IntraMoveType intra_mode, 
+    mt19937& rng) 
+{
+    vector<int> tour = initial_tour;
+    LSHelpers h(I.N, I.K, tour);
+    long long current_obj = objective(tour, I);
+
+    vector<int> nodes_in_tour = tour;
+    vector<int> nodes_not_in_tour;
+    for (int i = 0; i < I.N; ++i) {
+        if (!h.in_tour[i]) {
+            nodes_not_in_tour.push_back(i);
+        }
+    }
+
+    while (true) {
+        long long best_delta = 0;
+        int best_move_type = -1; // 0: inter, 1: intra
+        int best_u = -1, best_v = -1; // for inter
+        int best_i = -1, best_j = -1; // for intra
+
+        // 1. Evaluate all Inter-route moves (node exchange)
+        for (int u : nodes_in_tour) {
+            for (int v : nodes_not_in_tour) {
+                long long delta = delta_inter_exchange(u, v, h, I);
+                if (delta < best_delta) {
+                    best_delta = delta;
+                    best_move_type = 0;
+                    best_u = u;
+                    best_v = v;
+                }
+            }
+        }
+
+        // 2. Evaluate all Intra-route moves
+        if (intra_mode == NODE_EXCHANGE) {
+            for (int i = 0; i < I.K; ++i) {
+                for (int j = i + 1; j < I.K; ++j) {
+                    long long delta = delta_intra_exchange_nodes(i, j, h, I);
+                    if (delta < best_delta) {
+                        best_delta = delta;
+                        best_move_type = 1;
+                        best_i = i;
+                        best_j = j;
+                    }
+                }
+            }
+        } else { // EDGE_EXCHANGE_2OPT
+            for (int i = 0; i < I.K; ++i) {
+                for (int j = i + 1; j < I.K; ++j) { // Note: j=i+1 is adjacent, delta fn handles this
+                    long long delta = delta_intra_exchange_edges_2opt(i, j, h, I);
+                     if (delta < best_delta) {
+                        best_delta = delta;
+                        best_move_type = 1;
+                        best_i = i;
+                        best_j = j;
+                    }
+                }
+            }
+        }
+        
+        // 3. Apply best move
+        if (best_delta < 0) {
+            // long long old_obj = objective(tour, I); // Debug
+            if (best_move_type == 0) {
+                apply_inter_exchange(h, best_u, best_v);
+                // Update lists for next iteration
+                for (size_t i = 0; i < nodes_in_tour.size(); ++i) {
+                    if (nodes_in_tour[i] == best_u) {
+                        nodes_in_tour[i] = best_v;
+                        break;
+                    }
+                }
+                for (size_t i = 0; i < nodes_not_in_tour.size(); ++i) {
+                    if (nodes_not_in_tour[i] == best_v) {
+                        nodes_not_in_tour[i] = best_u;
+                        break;
+                    }
+                }
+
+            } else { // move_type == 1
+                if (intra_mode == NODE_EXCHANGE) {
+                    apply_intra_exchange_nodes(h, best_i, best_j);
+                } else {
+                    apply_intra_exchange_edges_2opt(h, best_i, best_j);
+                }
+                // nodes_in_tour list doesn't change, just their order in h.tour
+            }
+            current_obj += best_delta;
+            // long long new_obj = objective(tour, I); // Debug
+            // if (new_obj != old_obj + best_delta) {
+            //     cerr << "FATAL DELTA MISMATCH (STEEP)" << endl; exit(1);
+            // }
+        } else {
+            break; // Local optimum reached
+        }
+    }
+    return tour;
+}
+/*
 vector<int> local_search_steep(vector<int> tour, const Instance& I, 
                                  bool use_edges, mt19937& rng) {
     const auto& D = I.D;
@@ -759,8 +1041,12 @@ vector<int> local_search_steep(vector<int> tour, const Instance& I,
                 }
             }
         }
-        
+
+        //Check for errors
+        long long old_obj = objective(tour, I);
+
         // Apply best move if improving
+        
         if (best_move.delta < 0) {
             improved = true;
             if (best_move.type == Move::INTRA_NODES) {
@@ -774,13 +1060,118 @@ vector<int> local_search_steep(vector<int> tour, const Instance& I,
                 in_tour[best_move.j] = true;
             }
         }
+
+        // Error prevention for mismatch in delta calculation:
+        long long new_obj = objective(tour, I);
+        if (new_obj != old_obj + best_move.delta) {
+            cerr << "FATAL ERROR: Delta mismatch! Calculated Delta: " << best_move.delta 
+                << ", Actual Delta: " << (new_obj - old_obj) << "\n";
+            // Break the loop to debug the exact state
+            improved = false;
+            break; 
+        }
     }
     
     return tour;
 }
+*/
+
+
 
 // Greedy local search
 // : Evaluate moves in random order, accept the first improving
+vector<int> local_search_greedy(
+    const vector<int>& initial_tour, 
+    const Instance& I, 
+    IntraMoveType intra_mode, 
+    mt19937& rng) 
+{
+    vector<int> tour = initial_tour;
+    LSHelpers h(I.N, I.K, tour);
+    long long current_obj = objective(tour, I);
+    
+    // 0: inter {u, v}, 1: intra-node {i, j}, 2: intra-edge {i, j}
+    vector<tuple<int, int, int>> moves;
+
+    while (true) {
+        bool found_improving = false;
+
+        // 1. Build list of all possible moves
+        moves.clear();
+        vector<int> nodes_in_tour = tour;
+        vector<int> nodes_not_in_tour;
+        for (int i = 0; i < I.N; ++i) {
+            if (!h.in_tour[i]) {
+                nodes_not_in_tour.push_back(i);
+            }
+        }
+
+        // Add inter-moves
+        for (int u : nodes_in_tour) {
+            for (int v : nodes_not_in_tour) {
+                moves.emplace_back(0, u, v);
+            }
+        }
+        
+        // Add intra-moves
+        if (intra_mode == NODE_EXCHANGE) {
+            for (int i = 0; i < I.K; ++i) {
+                for (int j = i + 1; j < I.K; ++j) {
+                    moves.emplace_back(1, i, j);
+                }
+            }
+        } else { // EDGE_EXCHANGE_2OPT
+            for (int i = 0; i < I.K; ++i) {
+                for (int j = i + 1; j < I.K; ++j) {
+                    moves.emplace_back(2, i, j);
+                }
+            }
+        }
+
+        // 2. Shuffle moves
+        shuffle(moves.begin(), moves.end(), rng);
+
+        // 3. Evaluate moves in random order
+        for (const auto& move : moves) {
+            long long delta = 0;
+            int type, a, b;
+            tie(type, a, b) = move;
+
+            if (type == 0) { // inter
+                delta = delta_inter_exchange(a, b, h, I);
+            } else if (type == 1) { // intra-node
+                delta = delta_intra_exchange_nodes(a, b, h, I);
+            } else { // intra-edge
+                delta = delta_intra_exchange_edges_2opt(a, b, h, I);
+            }
+
+            // 4. Apply first improving move
+            if (delta < 0) {
+                // long long old_obj = objective(tour, I); // Debug
+                if (type == 0) {
+                    apply_inter_exchange(h, a, b);
+                } else if (type == 1) {
+                    apply_intra_exchange_nodes(h, a, b);
+                } else {
+                    apply_intra_exchange_edges_2opt(h, a, b);
+                }
+                current_obj += delta;
+                // long long new_obj = objective(tour, I); // Debug
+                // if (new_obj != old_obj + delta) {
+                //    cerr << "FATAL DELTA MISMATCH (GREEDY)" << endl; exit(1);
+                // }
+                found_improving = true;
+                break; // Exit inner loop and restart
+            }
+        }
+        
+        if (!found_improving) {
+            break; // Local optimum reached
+        }
+    }
+    return tour;
+}
+/*
 vector<int> local_search_greedy(vector<int> tour, const Instance& I, 
                                bool use_edges, mt19937& rng) {
     const auto& D = I.D;
@@ -855,6 +1246,8 @@ vector<int> local_search_greedy(vector<int> tour, const Instance& I,
     return tour;
 }
 
+*/
+
 
 // SVG output plots with the way the tour looks like
 static string esc(const string& s){ return s; }
@@ -923,7 +1316,7 @@ void save_svg(const Instance& I, const vector<int>& tour, const string& out_path
             out << "<circle cx='"<<cx<<"' cy='"<<cy<<"' r='"<<rad(I.cost[i])
                 <<"' fill='rgb("<<r<<","<<g<<","<<b<<")' stroke='black' stroke-width='1'/>\n";
         } else {
-            out << "<circle cx='"<<cx<<"' cy='"<<cy<<"' r='3' fill='none' stroke='lightgray' />\n";  //TODO: change color
+            out << "<circle cx='"<<cx<<"' cy='"<<cy<<"' r='3' fill='none' stroke='gray' />\n";  
         }
         // index label for selected
         if (sel.count(i)) {
@@ -942,6 +1335,7 @@ struct MethodResult {
     // delta is the obj value of the candidate node))
     vector<int> best_tour; //just vector of the node ids that gave us the best objective
     vector<long long> all_objs; // for min/max/avg
+    vector<double> all_times_ms; // for timing
 };
 
 int main(int argc, char** argv) {
@@ -974,35 +1368,55 @@ for (int i=1; i<argc; ++i) {
 
     mt19937 rng(seed);
 
+    // Prepare summary CSV files - ensures that we don't overwrite the result files
+    string short_summary_obj_csv = (filesystem::path(outdir) / "all_results_summary_objectives.csv").string();
+    string short_summary_time_csv = (filesystem::path(outdir) / "all_results_summary_times.csv").string();
+
+    static bool headers_written = false;
+    if (!headers_written) {
+        ofstream SSO(short_summary_obj_csv);
+        SSO << "instance,method,summary\n";
+        ofstream SST(short_summary_time_csv);
+        SST << "instance,method,summary (ms)\n";
+        headers_written = true;
+    }
+
+
     for (const auto& path : files) {
         Instance I;
         if (!read_instance(path, I)) return 2;
         cout << "Instance: " << I.name << "   N=" << I.N << "  K=" << I.K << "\n";
 
+
         vector<MethodResult> methods;
-        methods.push_back({"RANDOM", LLONG_MAX, {}, {}}); //0
-        methods.push_back({"NN_END_ONLY", LLONG_MAX, {}, {}}); //1
-        methods.push_back({"NN_INSERT_ANYWHERE_PATH", LLONG_MAX, {}, {}}); //2
-        methods.push_back({"GREEDY_CYCLE_CHEAPEST_INSERTION", LLONG_MAX, {}, {}}); //3
+        methods.push_back({"CH_RANDOM", LLONG_MAX, {}, {}, {}}); //0
+        methods.push_back({"CH_NN_END_ONLY", LLONG_MAX, {}, {}, {}}); //1
+        methods.push_back({"CH_NN_INSERT_ANYWHERE_PATH", LLONG_MAX, {}, {}, {}}); //2
+        methods.push_back({"CH_GREEDY_CYCLE_CHEAPEST_INSERTION", LLONG_MAX, {}, {}, {}}); //3
+        methods.push_back({"CH_NN_PATH_INSERT_ANYWHERE_REGRET2", LLONG_MAX, {}, {}, {}});  //4
+        methods.push_back({"CH_NN_PATH_INSERT_ANYWHERE_REGRET2_WEIGHTED_reg1_objchange_1", LLONG_MAX, {}, {}, {}}); //5
+        methods.push_back({"CH_NN_PATH_INSERT_ANYWHERE_REGRET2_WEIGHTED_reg2_objchange_1", LLONG_MAX, {}, {}, {}}); //6
+        methods.push_back({"CH_NN_PATH_INSERT_ANYWHERE_REGRET2_WEIGHTED_reg1_objchange_2", LLONG_MAX, {}, {}, {}}); //7
+        methods.push_back({"CH_GREEDY_CYCLE_REGRET2", LLONG_MAX, {}, {}, {}}); //8
+        methods.push_back({"CH_GREEDY_CYCLE_REGRET2_WEIGHTED_reg1_objchange_1", LLONG_MAX, {}, {}, {}}); //9
+        methods.push_back({"CH_GREEDY_CYCLE_REGRET2_WEIGHTED_reg2_objchange_1", LLONG_MAX, {}, {}, {}}); //10
+        methods.push_back({"CH_GREEDY_CYCLE_REGRET2_WEIGHTED_reg1_objchange_2", LLONG_MAX, {}, {}, {}}); //11
 
-        methods.push_back({"NN_PATH_INSERT_ANYWHERE_REGRET2", LLONG_MAX, {}, {}});  //4
-        methods.push_back({"NN_PATH_INSERT_ANYWHERE_REGRET2_WEIGHTED_reg1_objchange_1", LLONG_MAX, {}, {}}); //5
-        methods.push_back({"NN_PATH_INSERT_ANYWHERE_REGRET2_WEIGHTED_reg2_objchange_1", LLONG_MAX, {}, {}}); //6
-        methods.push_back({"NN_PATH_INSERT_ANYWHERE_REGRET2_WEIGHTED_reg1_objchange_2", LLONG_MAX, {}, {}}); //7
+        // Local Search Methods
+        // Start: Random, Intra: Node Ex
+        methods.push_back({"LS_Rand_Steep_Node", LLONG_MAX, {}, {}, {}}); // 12
+        methods.push_back({"LS_Rand_Greedy_Node", LLONG_MAX, {}, {}, {}}); // 13
+        // Start: Random, Intra: Edge Ex
+        methods.push_back({"LS_Rand_Steep_Edge", LLONG_MAX, {}, {}, {}}); // 14
+        methods.push_back({"LS_Rand_Greedy_Edge", LLONG_MAX, {}, {}, {}}); // 15
+        // Start: Greedy, Intra: Node Ex
+        methods.push_back({"LS_Greedy_Steep_Node", LLONG_MAX, {}, {}, {}}); // 16
+        methods.push_back({"LS_Greedy_Greedy_Node", LLONG_MAX, {}, {}, {}}); // 17
+        // Start: Greedy, Intra: Edge Ex
+        methods.push_back({"LS_Greedy_Steep_Edge", LLONG_MAX, {}, {}, {}}); // 18
+        methods.push_back({"LS_Greedy_Greedy_Edge", LLONG_MAX, {}, {}, {}}); // 19
 
-        methods.push_back({"GREEDY_CYCLE_REGRET2", LLONG_MAX, {}, {}}); //8
-        methods.push_back({"GREEDY_CYCLE_REGRET2_WEIGHTED_reg1_objchange_1", LLONG_MAX, {}, {}}); //9
-        methods.push_back({"GREEDY_CYCLE_REGRET2_WEIGHTED_reg2_objchange_1", LLONG_MAX, {}, {}}); //10
-        methods.push_back({"GREEDY_CYCLE_REGRET2_WEIGHTED_reg1_objchange_2", LLONG_MAX, {}, {}}); //11
-
-        methods.push_back({"LS_STEEPEST_NODES_RANDOM", LLONG_MAX, {}, {}});        //12
-        methods.push_back({"LS_STEEPEST_NODES_GREEDY", LLONG_MAX, {}, {}});        //13
-        methods.push_back({"LS_STEEPEST_EDGES_RANDOM", LLONG_MAX, {}, {}});        //14
-        methods.push_back({"LS_STEEPEST_EDGES_GREEDY", LLONG_MAX, {}, {}});        //15
-        methods.push_back({"LS_GREEDY_NODES_RANDOM", LLONG_MAX, {}, {}});          //16
-        methods.push_back({"LS_GREEDY_NODES_GREEDY", LLONG_MAX, {}, {}});          //17
-        methods.push_back({"LS_GREEDY_EDGES_RANDOM", LLONG_MAX, {}, {}});          //18
-        methods.push_back({"LS_GREEDY_EDGES_GREEDY", LLONG_MAX, {}, {}});          //19
+        Stopwatch sw;
 
         // Save random tour for LS
         vector<vector<int>> random_tours;
@@ -1014,6 +1428,13 @@ for (int i=1; i<argc; ++i) {
         {
             auto &MR = methods[0];
             for (int r = 0; r < runs_for_random; ++r) {
+                //Progress bar
+                if ((r + 1) % 5 == 0 || r == runs_for_random - 1) { // Update every 5 runs
+                    double progress = (double)(r + 1) / runs_for_random;
+                    print_progress(progress, "Running CH_RANDOM...");
+                }
+                sw.reset();
+
                 auto tour = random_solution(I, rng, -1);
                 long long obj = objective(tour, I);
                 MR.all_objs.push_back(obj);
@@ -1022,204 +1443,272 @@ for (int i=1; i<argc; ++i) {
                 random_tours.push_back(tour);  // Random tour for LS
             }
         }
-
+        cerr << "\nDone." << endl;
 
         // NN and greedy: 200 per start node
+        cout << "Running " << I.N << " greedy starts (for CH and LS)...\n";
         for (int start = 0; start < I.N; ++start) {
-            vector<int> greedy_tour;  // Store tour from greed_cycle_regret2_weighted(1,1)
+            
+            // Show progress based on the outer loop (start node)
+            double progress = (double)(start + 1) / I.N;
+            print_progress(progress, "Greedy Starts (All Methods) Node " + to_string(start + 1) + "/" + to_string(I.N));
 
             for (int r = 0; r < runs_per_start; ++r) {
-                // NN_END_ONLY
-                {
-                    auto tour = nn_end_only(I, start, rng);
-                    long long obj = objective(tour, I);
-                    methods[1].all_objs.push_back(obj);
-                    if (obj < methods[1].best_obj) { methods[1].best_obj = obj; methods[1].best_tour = tour; }
-                }
-                // NN_INSERT_ANYWHERE_PATH
-                {
-                    auto tour = nn_path_insert_anywhere(I, start, rng);
-                    long long obj = objective(tour, I);
-                    methods[2].all_objs.push_back(obj);
-                    if (obj < methods[2].best_obj) { methods[2].best_obj = obj; methods[2].best_tour = tour; }
-                }
-                // GREEDY_CYCLE_CHEAPEST_INSERTION
-                {
-                    auto tour = greedy_cycle_cheapest_insertion(I, start, rng);
-                    long long obj = objective(tour, I);
-                    methods[3].all_objs.push_back(obj);
-                    if (obj < methods[3].best_obj) { methods[3].best_obj = obj; methods[3].best_tour = tour; }
-                }
-                // PATH_REGRET2
-                {
-                    auto tour = nn_path_insert_anywhere_regret2(I, start, rng);
-                    long long obj = objective(tour, I);
-                    methods[4].all_objs.push_back(obj);
-                    if (obj < methods[4].best_obj) { methods[4].best_obj = obj; methods[4].best_tour = tour; }
-                }
-                // PATH_REGRET2_WEIGHTED
-                {
-                    auto tour = nn_path_insert_anywhere_regret2_weighted(I, start, rng, 1.0, 1.0);
-                    long long obj = objective(tour, I);
-                    methods[5].all_objs.push_back(obj);
-                    if (obj < methods[5].best_obj) { methods[5].best_obj = obj; methods[5].best_tour = tour; }
-                }
-                // PATH_REGRET2_WEIGHTED REGRETY WEIGHT 2, OBJ CHANGE WEIGT 1
-                {
-                    auto tour = nn_path_insert_anywhere_regret2_weighted(I, start, rng, 2.0, 1.0);
-                    long long obj = objective(tour, I);
-                    methods[6].all_objs.push_back(obj);
-                    if (obj < methods[6].best_obj) { methods[6].best_obj = obj; methods[6].best_tour = tour; }
-                }
-                // PATH_REGRET2_WEIGHTED REGRETY WEIGHT 1, OBJ CHANGE WEIGT 2
-                {
-                    auto tour = nn_path_insert_anywhere_regret2_weighted(I, start, rng, 1.0, 2.0);
-                    long long obj = objective(tour, I);
-                    methods[7].all_objs.push_back(obj);
-                    if (obj < methods[7].best_obj) { methods[7].best_obj = obj; methods[7].best_tour = tour; }
-                }
+                // NN_END_ONLY (1)
+                sw.reset();
+                auto tour1 = nn_end_only(I, start, rng);
+                long long obj1 = objective(tour1, I);
+                methods[1].all_objs.push_back(obj1);
+                methods[1].all_times_ms.push_back(sw.elapsed_ms());
+                if (obj1 < methods[1].best_obj) { methods[1].best_obj = obj1; methods[1].best_tour = tour1; }
 
+                // NN_INSERT_ANYWHERE_PATH (2)
+                sw.reset();
+                auto tour2 = nn_path_insert_anywhere(I, start, rng);
+                long long obj2 = objective(tour2, I);
+                methods[2].all_objs.push_back(obj2);
+                methods[2].all_times_ms.push_back(sw.elapsed_ms());
+                if (obj2 < methods[2].best_obj) { methods[2].best_obj = obj2; methods[2].best_tour = tour2; }
 
-                // GREEDY_CYCLE_REGRET2
-                {
-                    auto tour = greed_cycle_regret2(I, start, rng);
-                    long long obj = objective(tour, I);
-                    methods[8].all_objs.push_back(obj);
-                    if (obj < methods[8].best_obj) { methods[8].best_obj = obj; methods[8].best_tour = tour; }
-                }
-                // GREEDY_CYCLE_REGRET2_WEIGHTED
-                {
-                    auto tour = greed_cycle_regret2_weighted(I, start, rng, 1.0, 1.0);
-                    long long obj = objective(tour, I);
-                    methods[9].all_objs.push_back(obj);
-                    if (obj < methods[9].best_obj) { methods[9].best_obj = obj; methods[9].best_tour = tour; }
-                    greedy_tours.push_back(tour);  //Save the result to use in local search initial tour
-                }
-                // GREEDY_CYCLE_REGRET2_WEIGHTED REGRETY WEIGHT 2, OBJ CHANGE WEIGT 1
-                {
-                    auto tour = greed_cycle_regret2_weighted(I, start, rng, 2.0, 1.0);
-                    long long obj = objective(tour, I);
-                    methods[10].all_objs.push_back(obj);
-                    if (obj < methods[10].best_obj) { methods[10].best_obj = obj; methods[10].best_tour = tour; }
-                }
-                // GREEDY_CYCLE_REGRET2_WEIGHTED REGRETY WEIGHT 1, OBJ CHANGE WEIGT 2
-                {
-                    auto tour = greed_cycle_regret2_weighted(I, start, rng, 1.0, 2.0);
-                    long long obj = objective(tour, I);
-                    methods[11].all_objs.push_back(obj);
-                    if (obj < methods[11].best_obj) { methods[11].best_obj = obj; methods[11].best_tour = tour; }
+                // GREEDY_CYCLE_CHEAPEST_INSERTION (3)
+                sw.reset();
+                auto tour3 = greedy_cycle_cheapest_insertion(I, start, rng);
+                long long obj3 = objective(tour3, I);
+                methods[3].all_objs.push_back(obj3);
+                methods[3].all_times_ms.push_back(sw.elapsed_ms());
+                if (obj3 < methods[3].best_obj) { methods[3].best_obj = obj3; methods[3].best_tour = tour3; }
+
+                // PATH_REGRET2 (4)
+                sw.reset();
+                auto tour4 = nn_path_insert_anywhere_regret2(I, start, rng);
+                long long obj4 = objective(tour4, I);
+                methods[4].all_objs.push_back(obj4);
+                methods[4].all_times_ms.push_back(sw.elapsed_ms());
+                if (obj4 < methods[4].best_obj) { methods[4].best_obj = obj4; methods[4].best_tour = tour4; }
+                
+                // PATH_REGRET2_WEIGHTED (1,1) (5)
+                sw.reset();
+                auto tour5 = nn_path_insert_anywhere_regret2_weighted(I, start, rng, 1.0, 1.0);
+                long long obj5 = objective(tour5, I);
+                methods[5].all_objs.push_back(obj5);
+                methods[5].all_times_ms.push_back(sw.elapsed_ms());
+                if (obj5 < methods[5].best_obj) { methods[5].best_obj = obj5; methods[5].best_tour = tour5; }
+                
+                // PATH_REGRET2_WEIGHTED (2,1) (6)
+                sw.reset();
+                auto tour6 = nn_path_insert_anywhere_regret2_weighted(I, start, rng, 2.0, 1.0);
+                long long obj6 = objective(tour6, I);
+                methods[6].all_objs.push_back(obj6);
+                methods[6].all_times_ms.push_back(sw.elapsed_ms());
+                if (obj6 < methods[6].best_obj) { methods[6].best_obj = obj6; methods[6].best_tour = tour6; }
+                
+                // PATH_REGRET2_WEIGHTED (1,2) (7)
+                sw.reset();
+                auto tour7 = nn_path_insert_anywhere_regret2_weighted(I, start, rng, 1.0, 2.0);
+                long long obj7 = objective(tour7, I);
+                methods[7].all_objs.push_back(obj7);
+                methods[7].all_times_ms.push_back(sw.elapsed_ms());
+                if (obj7 < methods[7].best_obj) { methods[7].best_obj = obj7; methods[7].best_tour = tour7; }
+
+                // GREEDY_CYCLE_REGRET2 (8)
+                sw.reset();
+                auto tour8 = greed_cycle_regret2(I, start, rng);
+                long long obj8 = objective(tour8, I);
+                methods[8].all_objs.push_back(obj8);
+                methods[8].all_times_ms.push_back(sw.elapsed_ms());
+                if (obj8 < methods[8].best_obj) { methods[8].best_obj = obj8; methods[8].best_tour = tour8; }
+                
+                // GREEDY_CYCLE_REGRET2_WEIGHTED (1,1) (9)
+                sw.reset();
+                auto tour9 = greed_cycle_regret2_weighted(I, start, rng, 1.0, 1.0);
+                long long obj9 = objective(tour9, I);
+                methods[9].all_objs.push_back(obj9);
+                methods[9].all_times_ms.push_back(sw.elapsed_ms());
+                if (obj9 < methods[9].best_obj) { methods[9].best_obj = obj9; methods[9].best_tour = tour9; }
+                
+                // GREEDY_CYCLE_REGRET2_WEIGHTED (2,1) (10)
+                sw.reset();
+                auto tour10 = greed_cycle_regret2_weighted(I, start, rng, 2.0, 1.0);
+                long long obj10 = objective(tour10, I);
+                methods[10].all_objs.push_back(obj10);
+                methods[10].all_times_ms.push_back(sw.elapsed_ms());
+                if (obj10 < methods[10].best_obj) { methods[10].best_obj = obj10; methods[10].best_tour = tour10; }
+                // Save this as the greedy start for LS
+                if (r == 0) { // Only save one per start node
+                    greedy_tours.push_back(tour10);
                 }
                 
+                // GREEDY_CYCLE_REGRET2_WEIGHTED (1,2) (11)
+                sw.reset();
+                auto tour11 = greed_cycle_regret2_weighted(I, start, rng, 1.0, 2.0);
+                long long obj11 = objective(tour11, I);
+                methods[11].all_objs.push_back(obj11);
+                methods[11].all_times_ms.push_back(sw.elapsed_ms());
+                if (obj11 < methods[11].best_obj) { methods[11].best_obj = obj11; methods[11].best_tour = tour11; }
             }
+        }
+        cerr << "\nDone." << endl;
+
+        // LOCAL SEARCH from Random Initialization
+        std::cout << endl << "Running local search...\n";
+
+        cout << "Running Local Search from " << runs_for_random << " random starts...\n";
+        int total_ls_rand_runs = random_tours.size() * 4; // 4 LS variants
+        int current_ls_rand_run = 0;
+        
+        for (size_t i = 0; i < random_tours.size(); ++i) {
+            const auto& start_tour = random_tours[i];
+
+            // LS_Rand_Steep_Node (12)
+            current_ls_rand_run++;
+            print_progress((double)current_ls_rand_run / total_ls_rand_runs, 
+                           "LS from Random (Steep, Node) " + to_string(i + 1) + "/" + to_string(random_tours.size()));
+            sw.reset();
+            auto tour12 = local_search_steepest(start_tour, I, NODE_EXCHANGE, rng);
+            long long obj12 = objective(tour12, I);
+            methods[12].all_objs.push_back(obj12);
+            methods[12].all_times_ms.push_back(sw.elapsed_ms());
+            if (obj12 < methods[12].best_obj) { methods[12].best_obj = obj12; methods[12].best_tour = tour12; }
+
+            // LS_Rand_Greedy_Node (13)
+            current_ls_rand_run++;
+            print_progress((double)current_ls_rand_run / total_ls_rand_runs,
+                           "LS from Random (Greedy, Node) " + to_string(i + 1) + "/" + to_string(random_tours.size()));
+            sw.reset();
+            auto tour13 = local_search_greedy(start_tour, I, NODE_EXCHANGE, rng);
+            long long obj13 = objective(tour13, I);
+            methods[13].all_objs.push_back(obj13);
+            methods[13].all_times_ms.push_back(sw.elapsed_ms());
+            if (obj13 < methods[13].best_obj) { methods[13].best_obj = obj13; methods[13].best_tour = tour13; }
             
-        }
+            // LS_Rand_Steep_Edge (14)
+            current_ls_rand_run++;
+            print_progress((double)current_ls_rand_run / total_ls_rand_runs,
+                           "LS from Random (Steep, Edge) " + to_string(i + 1) + "/" + to_string(random_tours.size()));
+            sw.reset();
+            auto tour14 = local_search_steepest(start_tour, I, EDGE_EXCHANGE_2OPT, rng);
+            long long obj14 = objective(tour14, I);
+            methods[14].all_objs.push_back(obj14);
+            methods[14].all_times_ms.push_back(sw.elapsed_ms());
+            if (obj14 < methods[14].best_obj) { methods[14].best_obj = obj14; methods[14].best_tour = tour14; }
 
-        // LOCAL SEARCH
-        cout << "Running local search...\n";
-
-        // LS_STEEPEST_NODES_RANDOM (12)
-        {
-            auto &MR = methods[12];
-            for (auto& initial : random_tours) {
-                auto improved = local_search_steep(initial, I, false, rng);
-                long long obj = objective(improved, I);
-                MR.all_objs.push_back(obj);
-                if (obj < MR.best_obj) { MR.best_obj = obj; MR.best_tour = improved; }
-            }
+            // LS_Rand_Greedy_Edge (15)
+            current_ls_rand_run++;
+            print_progress((double)current_ls_rand_run / total_ls_rand_runs,
+                           "LS from Random (Greedy, Edge) " + to_string(i + 1) + "/" + to_string(random_tours.size()));
+            sw.reset();
+            auto tour15 = local_search_greedy(start_tour, I, EDGE_EXCHANGE_2OPT, rng);
+            long long obj15 = objective(tour15, I);
+            methods[15].all_objs.push_back(obj15);
+            methods[15].all_times_ms.push_back(sw.elapsed_ms());
+            if (obj15 < methods[15].best_obj) { methods[15].best_obj = obj15; methods[15].best_tour = tour15; }
         }
+        cerr << "\nDone." << endl;
 
-        // LS_STEEPEST_NODES_GREEDY (13)
-        {
-            auto &MR = methods[13];
-            for (auto& initial : greedy_tours) {
-                auto improved = local_search_steep(initial, I, false, rng);
-                long long obj = objective(improved, I);
-                MR.all_objs.push_back(obj);
-                if (obj < MR.best_obj) { MR.best_obj = obj; MR.best_tour = improved; }
-            }
-        }
 
-        // LS_STEEPEST_EDGES_RANDOM (14)
-        {
-            auto &MR = methods[14];
-            for (auto& initial : random_tours) {
-                auto improved = local_search_steep(initial, I, true, rng);
-                long long obj = objective(improved, I);
-                MR.all_objs.push_back(obj);
-                if (obj < MR.best_obj) { MR.best_obj = obj; MR.best_tour = improved; }
-            }
-        }
+        // LOCAL SEARCH from Greedy Initialization
+        cout << "Running Local Search from " << greedy_tours.size() << " greedy starts...\n";
+        int total_ls_greedy_runs = greedy_tours.size() * 4; // 4 LS variants
+        int current_ls_greedy_run = 0;
+        
+        for(size_t i = 0; i < greedy_tours.size(); ++i) {
+            const auto& start_tour = greedy_tours[i];
+            
+            // LS_Greedy_Steep_Node (16)
+            current_ls_greedy_run++;
+            print_progress((double)current_ls_greedy_run / total_ls_greedy_runs,
+                           "LS from Greedy (Steep, Node) " + to_string(i + 1) + "/" + to_string(greedy_tours.size()));
+            sw.reset();
+            auto tour16 = local_search_steepest(start_tour, I, NODE_EXCHANGE, rng);
+            long long obj16 = objective(tour16, I);
+            methods[16].all_objs.push_back(obj16);
+            methods[16].all_times_ms.push_back(sw.elapsed_ms());
+            if (obj16 < methods[16].best_obj) { methods[16].best_obj = obj16; methods[16].best_tour = tour16; }
 
-        // LS_STEEPEST_EDGES_GREEDY (15)
-        {
-            auto &MR = methods[15];
-            for (auto& initial : greedy_tours) {
-                auto improved = local_search_steep(initial, I, true, rng);
-                long long obj = objective(improved, I);
-                MR.all_objs.push_back(obj);
-                if (obj < MR.best_obj) { MR.best_obj = obj; MR.best_tour = improved; }
-            }
-        }
+            // LS_Greedy_Greedy_Node (17)
+            current_ls_greedy_run++;
+            print_progress((double)current_ls_greedy_run / total_ls_greedy_runs,
+                           "LS from Greedy (Greedy, Node) " + to_string(i + 1) + "/" + to_string(greedy_tours.size()));
+            sw.reset();
+            auto tour17 = local_search_greedy(start_tour, I, NODE_EXCHANGE, rng);
+            long long obj17 = objective(tour17, I);
+            methods[17].all_objs.push_back(obj17);
+            methods[17].all_times_ms.push_back(sw.elapsed_ms());
+            if (obj17 < methods[17].best_obj) { methods[17].best_obj = obj17; methods[17].best_tour = tour17; }
+            
+            // LS_Greedy_Steep_Edge (18)
+            current_ls_greedy_run++;
+            print_progress((double)current_ls_greedy_run / total_ls_greedy_runs,
+                           "LS from Greedy (Steep, Edge) " + to_string(i + 1) + "/" + to_string(greedy_tours.size()));
+            sw.reset();
+            auto tour18 = local_search_steepest(start_tour, I, EDGE_EXCHANGE_2OPT, rng);
+            long long obj18 = objective(tour18, I);
+            methods[18].all_objs.push_back(obj18);
+            methods[18].all_times_ms.push_back(sw.elapsed_ms());
+            if (obj18 < methods[18].best_obj) { methods[18].best_obj = obj18; methods[18].best_tour = tour18; }
 
-        // LS_GREEDY_NODES_RANDOM (16)
-        {
-            auto &MR = methods[16];
-            for (auto& initial : random_tours) {
-                auto improved = local_search_greedy(initial, I, false, rng);
-                long long obj = objective(improved, I);
-                MR.all_objs.push_back(obj);
-                if (obj < MR.best_obj) { MR.best_obj = obj; MR.best_tour = improved; }
-            }
+            // LS_Greedy_Greedy_Edge (19)
+            current_ls_greedy_run++;
+            print_progress((double)current_ls_greedy_run / total_ls_greedy_runs,
+                           "LS from Greedy (Greedy, Edge) " + to_string(i + 1) + "/" + to_string(greedy_tours.size()));
+            sw.reset();
+            auto tour19 = local_search_greedy(start_tour, I, EDGE_EXCHANGE_2OPT, rng);
+            long long obj19 = objective(tour19, I);
+            methods[19].all_objs.push_back(obj19);
+            methods[19].all_times_ms.push_back(sw.elapsed_ms());
+            if (obj19 < methods[19].best_obj) { methods[19].best_obj = obj19; methods[19].best_tour = tour19; }
         }
+        cerr << "\nDone." << endl;
 
-        // LS_GREEDY_NODES_GREEDY (17)
-        {
-            auto &MR = methods[17];
-            for (auto& initial : greedy_tours) {
-                auto improved = local_search_greedy(initial, I, false, rng);
-                long long obj = objective(improved, I);
-                MR.all_objs.push_back(obj);
-                if (obj < MR.best_obj) { MR.best_obj = obj; MR.best_tour = improved; }
-            }
-        }
-
-        // LS_GREEDY_EDGES_RANDOM (18)
-        {
-            auto &MR = methods[18];
-            for (auto& initial : random_tours) {
-                auto improved = local_search_greedy(initial, I, true, rng);
-                long long obj = objective(improved, I);
-                MR.all_objs.push_back(obj);
-                if (obj < MR.best_obj) { MR.best_obj = obj; MR.best_tour = improved; }
-            }
-        }
-
-        // LS_GREEDY_EDGES_GREEDY (19)
-        {
-            auto &MR = methods[19];
-            for (auto& initial : greedy_tours) {
-                auto improved = local_search_greedy(initial, I, true, rng);
-                long long obj = objective(improved, I);
-                MR.all_objs.push_back(obj);
-                if (obj < MR.best_obj) { MR.best_obj = obj; MR.best_tour = improved; }
-            }
-        }
 /////
-        // summaries + best tours + SVGs
+        // --- Summaries + Best Tours + SVGs ---
         string summary_csv = (filesystem::path(outdir) / (I.name + "_results_summary.csv")).string();
         ofstream S(summary_csv);
-        S << "instance,method,runs,min,max,avg,best_obj\n";
+        S << "instance,method,runs,min_obj,max_obj,avg_obj,best_obj,min_time_ms,max_time_ms,avg_time_ms\n";
+        
+        // Open summary files in append mode
+        ofstream SSO(short_summary_obj_csv, ios::app);
+        ofstream SST(short_summary_time_csv, ios::app);
+
+
         for (auto &MR : methods) {
+            if (MR.all_objs.empty()) continue; // Skip methods that didn't run
+
             if (!MR.best_tour.empty()) {
                 string why;
                 bool ok = check_solution(MR.best_tour, I, &why);
                 if (!ok) cerr << "WARNING: best tour for " << MR.method << " failed check: " << why << "\n";
             }
-            long long mn = LLONG_MAX, mx = LLONG_MIN; long double sum = 0;
-            for (auto v : MR.all_objs) { mn = min(mn, v); mx = max(mx, v); sum += v; }
-            long double avg = (MR.all_objs.empty() ? 0 : sum / (long double)MR.all_objs.size());
+            
+            // Objective stats
+            long long mn_obj = LLONG_MAX, mx_obj = LLONG_MIN; 
+            long double sum_obj = 0;
+            for (auto v : MR.all_objs) { mn_obj = min(mn_obj, v); mx_obj = max(mx_obj, v); sum_obj += v; }
+            long double avg_obj = sum_obj / (long double)MR.all_objs.size();
+
+            // Time stats
+            double mn_time = 1e300, mx_time = -1e300, sum_time = 0;
+            for (auto t : MR.all_times_ms) { mn_time = min(mn_time, t); mx_time = max(mx_time, t); sum_time += t; }
+            double avg_time = sum_time / (double)MR.all_times_ms.size();
+
+
+            // Instance-specific summary
             S << I.name << "," << MR.method << "," << MR.all_objs.size() << ","
-              << mn << "," << mx << "," << (long long)(avg + 0.5) << "," << MR.best_obj << "\n";
+              << mn_obj << "," << mx_obj << "," << (long long)(avg_obj + 0.5) << "," << MR.best_obj << ","
+              << mn_time << "," << mx_time << "," << avg_time << "\n";
+
+            // Global summary (Objectives)
+            SSO << I.name << "," << MR.method << ","
+               << (long long)(avg_obj + 0.5)
+               << " (" << mn_obj << " ; " << mx_obj << ")"
+               << "\n";
+
+            // Global summary (Times)
+            SST << I.name << "," << MR.method << ","
+               << fixed << setprecision(3) << avg_time
+               << " (" << mn_time << " ; " << mx_time << ")"
+               << "\n";
+
 
             // best tour list (with 0-based indices)
             if (!MR.best_tour.empty()) {
@@ -1236,26 +1725,8 @@ for (int i=1; i<argc; ++i) {
                 save_svg(I, MR.best_tour, svg);
             }
         }
-        
-        string short_summary_csv = (filesystem::path(outdir) / "all_results_summary.csv").string();
-        bool new_file = !filesystem::exists(short_summary_csv);
-
-        ofstream SS(short_summary_csv, ios::app);
-        if (new_file) {
-            SS << "instance,method,summary\n";
-        }
-
-        for (auto &MR : methods) {
-            if (MR.all_objs.empty()) continue;
-            long long mn = LLONG_MAX, mx = LLONG_MIN; long double sum = 0;
-            for (auto v : MR.all_objs) { mn = min(mn, v); mx = max(mx, v); sum += v; }
-            long double avg = sum / (long double)MR.all_objs.size();
-            SS << I.name << "," << MR.method << ","
-               << (long long)(avg + 0.5)
-               << " (" << mn << ";" << mx << ")"
-               << "\n";
-        }
         cout << "Wrote: " << summary_csv << " and best tours/SVGs in " << outdir << "\n";
+        cout << "Appended to: " << short_summary_obj_csv << " and " << short_summary_time_csv << "\n";
     }
     return 0;
 }
