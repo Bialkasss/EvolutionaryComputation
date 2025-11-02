@@ -205,114 +205,114 @@ void insert_at(vector<T>& v, int pos, const T& val) {
 
 // // ------------------- Delta Calculations --------------------------------------
 // // Intra-route two nodes exchange (swap positions of the nodes)
-// long long delta_nodes_exchange(const vector<int>& tour, int i, int j, 
-//                                const vector<vector<int>>& D) {
-//     int m = (int)tour.size();
-//     if (i == j) return 0;
-//     if (i > j) swap(i, j);  // ensure i < j for better logic
+long long delta_nodes_exchange(const vector<int>& tour, int i, int j, 
+                               const vector<vector<int>>& D) {
+    int m = (int)tour.size();
+    if (i == j) return 0;
+    if (i > j) swap(i, j);  // ensure i < j for better logic
     
-//     // Special case: adjacent nodes (less computation)
-//     if (j == i + 1) {
-//         // Before: ... - tour[i-1] - tour[i] - tour[j] - tour[j+1] - ...
-//         // After:  ... - tour[i-1] - tour[j] - tour[i] - tour[j+1] - ...
-//         int prev = tour[(i - 1 + m) % m];
-//         int next = tour[(j + 1) % m];
-//         int ni = tour[i];
-//         int nj = tour[j];
+    // Special case: adjacent nodes (less computation)
+    if (j == i + 1) {
+        // Before: ... - tour[i-1] - tour[i] - tour[j] - tour[j+1] - ...
+        // After:  ... - tour[i-1] - tour[j] - tour[i] - tour[j+1] - ...
+        int prev = tour[(i - 1 + m) % m];
+        int next = tour[(j + 1) % m];
+        int ni = tour[i];
+        int nj = tour[j];
         
-//         long long old_cost = (long long)D[prev][ni] + D[ni][nj] + D[nj][next];
-//         long long new_cost = (long long)D[prev][nj] + D[nj][ni] + D[ni][next];
-//         return new_cost - old_cost;
-//     }
+        long long old_cost = (long long)D[prev][ni] + D[ni][nj] + D[nj][next];
+        long long new_cost = (long long)D[prev][nj] + D[nj][ni] + D[ni][next];
+        return new_cost - old_cost;
+    }
     
-//     // General case: non-adjacent nodes
-//     // Before: ... - tour[i-1] - tour[i] - tour[i+1] - ... - tour[j-1] - tour[j] - tour[j+1] - ...
-//     // After:  ... - tour[i-1] - tour[j] - tour[i+1] - ... - tour[j-1] - tour[i] - tour[j+1] - ...
-//     int prev_i = tour[(i - 1 + m) % m];
-//     int next_i = tour[(i + 1) % m];
-//     int prev_j = tour[(j - 1 + m) % m];
-//     int next_j = tour[(j + 1) % m];
-//     int ni = tour[i];
-//     int nj = tour[j];
+    // General case: non-adjacent nodes
+    // Before: ... - tour[i-1] - tour[i] - tour[i+1] - ... - tour[j-1] - tour[j] - tour[j+1] - ...
+    // After:  ... - tour[i-1] - tour[j] - tour[i+1] - ... - tour[j-1] - tour[i] - tour[j+1] - ...
+    int prev_i = tour[(i - 1 + m) % m];
+    int next_i = tour[(i + 1) % m];
+    int prev_j = tour[(j - 1 + m) % m];
+    int next_j = tour[(j + 1) % m];
+    int ni = tour[i];
+    int nj = tour[j];
     
-//     long long old_cost = (long long)D[prev_i][ni] + D[ni][next_i] + 
-//                          D[prev_j][nj] + D[nj][next_j];
-//     long long new_cost = (long long)D[prev_i][nj] + D[nj][next_i] + 
-//                          D[prev_j][ni] + D[ni][next_j];
-//     return new_cost - old_cost;
-// } //LOOKS GOOD
+    long long old_cost = (long long)D[prev_i][ni] + D[ni][next_i] + 
+                         D[prev_j][nj] + D[nj][next_j];
+    long long new_cost = (long long)D[prev_i][nj] + D[nj][next_i] + 
+                         D[prev_j][ni] + D[ni][next_j];
+    return new_cost - old_cost;
+} //LOOKS GOOD
 
-// //Intra-route 2 edges exchange (reverse segment between edges)
-// long long delta_edges_exchange(const vector<int>& tour, int i, int j, 
-//                                const vector<vector<int>>& D) {
-//     int m = (int)tour.size();
-//     if (i == j) return 0;
+//Intra-route 2 edges exchange (reverse segment between edges)
+long long delta_edges_exchange(const vector<int>& tour, int i, int j, 
+                               const vector<vector<int>>& D) {
+    int m = (int)tour.size();
+    if (i == j) return 0;
     
-//     // Ensure i < j and valid range
-//     if (i > j) swap(i, j);
-//     if (j - i == 1) return 0;  // adjacent edges, no change
+    // Ensure i < j and valid range
+    if (i > j) swap(i, j);
+    if (j - i == 1) return 0;  // adjacent edges, no change
     
-//     // Before: tour[i] - tour[i+1] - ... - tour[j] - tour[j+1]
-//     // After:  tour[i] - tour[j] - ... - tour[i+1] - tour[j+1]
-//     int ni = tour[i];
-//     int ni_next = tour[(i + 1) % m];
-//     int nj = tour[j];
-//     int nj_next = tour[(j + 1) % m];
+    // Before: tour[i] - tour[i+1] - ... - tour[j] - tour[j+1]
+    // After:  tour[i] - tour[j] - ... - tour[i+1] - tour[j+1]
+    int ni = tour[i];
+    int ni_next = tour[(i + 1) % m];
+    int nj = tour[j];
+    int nj_next = tour[(j + 1) % m];
     
-//     long long old_cost = (long long)D[ni][ni_next] + D[nj][nj_next];
-//     long long new_cost = (long long)D[ni][nj] + D[ni_next][nj_next];
-//     return new_cost - old_cost;
-// }
+    long long old_cost = (long long)D[ni][ni_next] + D[nj][nj_next];
+    long long new_cost = (long long)D[ni][nj] + D[ni_next][nj_next];
+    return new_cost - old_cost;
+}
 
-// //Inter-route (exchange 1 node in tour with 1 outside)
-// long long delta_inter_exchange(const vector<int>& tour, int pos, 
-//                                int node_out, const Instance& I) {
-//     const auto& D = I.D;
-//     const auto& C = I.cost;
-//     int m = (int)tour.size();
+//Inter-route (exchange 1 node in tour with 1 outside)
+long long delta_inter_exchange(const vector<int>& tour, int pos, 
+                               int node_out, const Instance& I) {
+    const auto& D = I.D;
+    const auto& C = I.cost;
+    int m = (int)tour.size();
     
-//     int node_in = tour[pos];
-//     int prev = tour[(pos - 1 + m) % m];
-//     int next = tour[(pos + 1) % m];
+    int node_in = tour[pos];
+    int prev = tour[(pos - 1 + m) % m];
+    int next = tour[(pos + 1) % m];
     
-//     // Edge cost change
-//     long long old_edges = (long long)D[prev][node_in] + D[node_in][next];
-//     long long new_edges = (long long)D[prev][node_out] + D[node_out][next];
+    // Edge cost change
+    long long old_edges = (long long)D[prev][node_in] + D[node_in][next];
+    long long new_edges = (long long)D[prev][node_out] + D[node_out][next];
     
-//     // Node cost change
-//     long long cost_change = C[node_out] - C[node_in];
+    // Node cost change
+    long long cost_change = C[node_out] - C[node_in];
     
-//     return (new_edges - old_edges) + cost_change;
-// }
+    return (new_edges - old_edges) + cost_change;
+}
 
-// // ------------------- Apply changes in cycle -------------------
-// // Apply two-nodes exchange
-// void apply_nodes_exchange(vector<int>& tour, int i, int j) {
-//     swap(tour[i], tour[j]);
-// }
+// ------------------- Apply changes in cycle -------------------
+// Apply two-nodes exchange
+void apply_nodes_exchange(vector<int>& tour, int i, int j) {
+    swap(tour[i], tour[j]);
+}
 
-// // Apply two-edges exchange (reverse segment)
-// void apply_edges_exchange(vector<int>& tour, int i, int j) {
-//     int m = (int)tour.size();
-//     // Reverse segment from (i+1) to j inclusive
-//     reverse(tour.begin() + i + 1, tour.begin() + j + 1);
-// }
+// Apply two-edges exchange (reverse segment)
+void apply_edges_exchange(vector<int>& tour, int i, int j) {
+    int m = (int)tour.size();
+    // Reverse segment from (i+1) to j inclusive
+    reverse(tour.begin() + i + 1, tour.begin() + j + 1);
+}
 
-// // Apply inter-route exchange
-// void apply_inter_exchange(vector<int>& tour, int pos, int node_out) {
-//     tour[pos] = node_out;
-// }
+// Apply inter-route exchange
+void apply_inter_exchange(vector<int>& tour, int pos, int node_out) {
+    tour[pos] = node_out;
+}
 
-// //  Move structure
-// struct Move {
-//     enum Type { INTRA_NODES, INTRA_EDGES, INTER } type;
-//     int i, j;           // indices for intra moves, or pos + node_out for inter
-//     long long delta;
+//  Move structure
+struct Move {
+    enum Type { INTRA_NODES, INTRA_EDGES, INTER } type;
+    int i, j;           // indices for intra moves, or pos + node_out for inter
+    long long delta;
     
-//     bool operator<(const Move& other) const {
-//         return delta < other.delta;  // check if its smaller (minimum)
-//     }
-// };
+    bool operator<(const Move& other) const {
+        return delta < other.delta;  // check if its smaller (minimum)
+    }
+};
 
 
 // --------------------- Heuristics ---------------------
@@ -954,7 +954,7 @@ vector<int> local_search_steepest(
         
         // 3. Apply best move
         if (best_delta < 0) {
-            // long long old_obj = objective(tour, I); // Debug
+            long long old_obj = objective(tour, I); // Debugging
             if (best_move_type == 0) {
                 apply_inter_exchange(h, best_u, best_v);
                 // Update lists for next iteration
@@ -980,103 +980,16 @@ vector<int> local_search_steepest(
                 // nodes_in_tour list doesn't change, just their order in h.tour
             }
             current_obj += best_delta;
-            // long long new_obj = objective(tour, I); // Debug
-            // if (new_obj != old_obj + best_delta) {
-            //     cerr << "FATAL DELTA MISMATCH (STEEP)" << endl; exit(1);
-            // }
+            long long new_obj = objective(tour, I); // Debug
+            if (new_obj != old_obj + best_delta) {
+                cerr << "FATAL DELTA MISMATCH (STEEP)" << endl; exit(1);
+            }
         } else {
             break; // Local optimum reached
         }
     }
     return tour;
 }
-/*
-vector<int> local_search_steep(vector<int> tour, const Instance& I, 
-                                 bool use_edges, mt19937& rng) {
-    const auto& D = I.D;
-    int m = (int)tour.size();
-    
-    // Save which nodes are in tour for inter moves
-    vector<bool> in_tour(I.N, false);
-    for (int node : tour) in_tour[node] = true;
-    
-    // Do until no better neighbour
-    bool improved = true;
-    while (improved) {
-        improved = false;
-        Move best_move;
-        best_move.delta = 0;  // only consider improving moves
-        
-        // Evaluate all INTRA moves
-        if (use_edges) {
-            // Two-edges exchange
-            for (int i = 0; i < m; ++i) {
-                for (int j = i + 2; j < m; ++j) {
-                    if (i == 0 && j == m - 1) continue;  // wraps around, skip
-                    long long delta = delta_edges_exchange(tour, i, j, D);
-                    if (delta < best_move.delta) {
-                        best_move = {Move::INTRA_EDGES, i, j, delta};
-                    }
-                }
-            }
-        } else {
-            // Two-nodes exchange
-            for (int i = 0; i < m; ++i) {
-                for (int j = i + 1; j < m; ++j) {
-                    long long delta = delta_nodes_exchange(tour, i, j, D);
-                    if (delta < best_move.delta) {
-                        best_move = {Move::INTRA_NODES, i, j, delta};
-                    }
-                }
-            }
-        }
-        
-        // Evaluate all INTER moves
-        for (int pos = 0; pos < m; ++pos) {
-            for (int node_out = 0; node_out < I.N; ++node_out) {
-                if (in_tour[node_out]) continue;
-                long long delta = delta_inter_exchange(tour, pos, node_out, I);
-                if (delta < best_move.delta) {
-                    best_move = {Move::INTER, pos, node_out, delta};
-                }
-            }
-        }
-
-        //Check for errors
-        long long old_obj = objective(tour, I);
-
-        // Apply best move if improving
-        
-        if (best_move.delta < 0) {
-            improved = true;
-            if (best_move.type == Move::INTRA_NODES) {
-                apply_nodes_exchange(tour, best_move.i, best_move.j);
-            } else if (best_move.type == Move::INTRA_EDGES) {
-                apply_edges_exchange(tour, best_move.i, best_move.j);
-            } else {  // INTER
-                int old_node = tour[best_move.i];
-                apply_inter_exchange(tour, best_move.i, best_move.j);
-                in_tour[old_node] = false;
-                in_tour[best_move.j] = true;
-            }
-        }
-
-        // Error prevention for mismatch in delta calculation:
-        long long new_obj = objective(tour, I);
-        if (new_obj != old_obj + best_move.delta) {
-            cerr << "FATAL ERROR: Delta mismatch! Calculated Delta: " << best_move.delta 
-                << ", Actual Delta: " << (new_obj - old_obj) << "\n";
-            // Break the loop to debug the exact state
-            improved = false;
-            break; 
-        }
-    }
-    
-    return tour;
-}
-*/
-
-
 
 // Greedy local search
 // : Evaluate moves in random order, accept the first improving
@@ -1147,7 +1060,7 @@ vector<int> local_search_greedy(
 
             // 4. Apply first improving move
             if (delta < 0) {
-                // long long old_obj = objective(tour, I); // Debug
+                long long old_obj = objective(tour, I); // Debug
                 if (type == 0) {
                     apply_inter_exchange(h, a, b);
                 } else if (type == 1) {
@@ -1156,10 +1069,10 @@ vector<int> local_search_greedy(
                     apply_intra_exchange_edges_2opt(h, a, b);
                 }
                 current_obj += delta;
-                // long long new_obj = objective(tour, I); // Debug
-                // if (new_obj != old_obj + delta) {
-                //    cerr << "FATAL DELTA MISMATCH (GREEDY)" << endl; exit(1);
-                // }
+                long long new_obj = objective(tour, I); // Debug
+                if (new_obj != old_obj + delta) {
+                   cerr << "FATAL DELTA MISMATCH (GREEDY)" << endl; exit(1);
+                }
                 found_improving = true;
                 break; // Exit inner loop and restart
             }
@@ -1171,82 +1084,6 @@ vector<int> local_search_greedy(
     }
     return tour;
 }
-/*
-vector<int> local_search_greedy(vector<int> tour, const Instance& I, 
-                               bool use_edges, mt19937& rng) {
-    const auto& D = I.D;
-    int m = (int)tour.size();
-    
-    vector<bool> in_tour(I.N, false);
-    for (int node : tour) in_tour[node] = true;
-    
-    bool improved = true;
-    while (improved) {
-        improved = false;
-        
-        // Create list of all possible moves
-        vector<Move> all_moves;
-        
-        // Add all INTRA moves
-        if (use_edges) {
-            for (int i = 0; i < m; ++i) {
-                for (int j = i + 2; j < m; ++j) {
-                    if (i == 0 && j == m - 1) continue;
-                    all_moves.push_back({Move::INTRA_EDGES, i, j, 0});
-                }
-            }
-        } else {
-            for (int i = 0; i < m; ++i) {
-                for (int j = i + 1; j < m; ++j) {
-                    all_moves.push_back({Move::INTRA_NODES, i, j, 0});
-                }
-            }
-        }
-        
-        // Add all INTER moves
-        for (int pos = 0; pos < m; ++pos) {
-            for (int node_out = 0; node_out < I.N; ++node_out) {
-                if (in_tour[node_out]) continue;
-                all_moves.push_back({Move::INTER, pos, node_out, 0});
-            }
-        }
-        
-        // Shuffle moves for random order evaluation
-        shuffle(all_moves.begin(), all_moves.end(), rng);
-        
-        // Evaluate moves in random order, accept first improving
-        for (auto& move : all_moves) {
-            long long delta;
-            if (move.type == Move::INTRA_NODES) {
-                delta = delta_nodes_exchange(tour, move.i, move.j, D);
-            } else if (move.type == Move::INTRA_EDGES) {
-                delta = delta_edges_exchange(tour, move.i, move.j, D);
-            } else {  // INTER
-                delta = delta_inter_exchange(tour, move.i, move.j, I);
-            }
-            
-            if (delta < 0) {
-                // Apply first improving move
-                improved = true;
-                if (move.type == Move::INTRA_NODES) {
-                    apply_nodes_exchange(tour, move.i, move.j);
-                } else if (move.type == Move::INTRA_EDGES) {
-                    apply_edges_exchange(tour, move.i, move.j);
-                } else {  // INTER
-                    int old_node = tour[move.i];
-                    apply_inter_exchange(tour, move.i, move.j);
-                    in_tour[old_node] = false;
-                    in_tour[move.j] = true;
-                }
-                break;  // Exit loop after first improvement
-            }
-        }
-    }
-    
-    return tour;
-}
-
-*/
 
 
 // SVG output plots with the way the tour looks like
@@ -1525,7 +1362,9 @@ for (int i=1; i<argc; ++i) {
                 methods[9].all_objs.push_back(obj9);
                 methods[9].all_times_ms.push_back(sw.elapsed_ms());
                 if (obj9 < methods[9].best_obj) { methods[9].best_obj = obj9; methods[9].best_tour = tour9; }
-                
+                // Save this as the greedy start for LS
+                greedy_tours.push_back(tour9);
+
                 // GREEDY_CYCLE_REGRET2_WEIGHTED (2,1) (10)
                 sw.reset();
                 auto tour10 = greed_cycle_regret2_weighted(I, start, rng, 2.0, 1.0);
@@ -1533,10 +1372,6 @@ for (int i=1; i<argc; ++i) {
                 methods[10].all_objs.push_back(obj10);
                 methods[10].all_times_ms.push_back(sw.elapsed_ms());
                 if (obj10 < methods[10].best_obj) { methods[10].best_obj = obj10; methods[10].best_tour = tour10; }
-                // Save this as the greedy start for LS
-                if (r == 0) { // Only save one per start node
-                    greedy_tours.push_back(tour10);
-                }
                 
                 // GREEDY_CYCLE_REGRET2_WEIGHTED (1,2) (11)
                 sw.reset();
