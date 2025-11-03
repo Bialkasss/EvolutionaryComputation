@@ -139,46 +139,6 @@ vector<int> nn_path_insert_anywhere_regret2_weighted(const Instance& I, int star
 }
 
 
-// CH_GREEDY_CYCLE_CHEAPEST_INSERTION
-vector<int> greedy_cycle_cheapest_insertion(const Instance& I, int start, mt19937& rng) {
-    const auto& D = I.D; const auto& C = I.cost; int K = I.K, N = I.N;
-
-    vector<char> used(N, 0);
-    vector<int> cyc; cyc.reserve(K);
-    cyc.push_back(start); used[start] = 1;
-
-    while ((int)cyc.size() < K) {
-        long long best_val = LLONG_MAX;
-        int best_j = -1, best_insert_after = -1; // insert after cyc[i]
-
-        int m = (int)cyc.size();
-        for (int j = 0; j < N; ++j) if (!used[j]) { // for each unused node
-            if (m == 1) { // special case: 1 node in cycle
-                int s = cyc[0]; 
-                long long delta = 2LL * D[s][j]; // s -> j -> s
-                long long total = delta + C[j];
-                if (total < best_val) { best_val = total; best_j = j; best_insert_after = 0; }
-                else if (total == best_val && uniform_int_distribution<int>(0,1)(rng)) {
-                    best_j = j; best_insert_after = 0;
-                }
-            } else { // general case: m >= 2
-                for (int i = 0; i < m; ++i) { 
-                    int u = cyc[i], v = cyc[(i+1)%m]; // edge u->v
-                    long long delta = (long long)D[u][j] + D[j][v] - D[u][v];
-                    long long total = delta + C[j];
-                    if (total < best_val) { best_val = total; best_j = j; best_insert_after = i; }
-                    else if (total == best_val && uniform_int_distribution<int>(0,1)(rng)) {
-                        best_j = j; best_insert_after = i;
-                    }
-                }
-            }
-        }
-        // insert after position best_insert_after
-        cyc.insert(cyc.begin() + (best_insert_after + 1), best_j);
-        used[best_j] = 1;
-    }
-    return cyc;
-}
 
 // CH_GREEDY_CYCLE_REGRET2
 vector<int> greed_cycle_regret2(const Instance& I, int start, mt19937& rng) {

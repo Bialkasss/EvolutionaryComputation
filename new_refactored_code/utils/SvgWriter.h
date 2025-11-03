@@ -88,7 +88,7 @@ inline void save_svg(const Instance& I, const vector<int>& tour, const string& o
             out << "<text x='"<<cx+6<<"' y='"<<cy-6<<"' font-size='10' fill='black'>"<<i<<"</text>\n";
         } else {
             // Draw unselected node
-            out << "<circle cx='"<<cx<<"' cy='"<<cy<<"' r='3' fill='none' stroke='darkgrey' />\n";  
+            out << "<circle cx='"<<cx<<"' cy='"<<cy<<"' r='3' fill='none' stroke='black' />\n";  
         }
     }
     out << "</g>\n";

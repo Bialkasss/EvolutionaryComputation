@@ -1,25 +1,25 @@
 #pragma once
+
 #include <vector>
 #include <string>
-#include <filesystem>
-#include "Common.h"
+#include "Common.h" // We'll put Point in here
 
+// Use the standard 'using' directive
 using namespace std;
 
-class Instance {
-public:
+// The struct definition is copied directly from main.cpp
+struct Instance {
     string name;
     vector<Point> pts;
-    vector<int> cost;
-    vector<vector<int>> D; // Distance matrix
+    vector<int>    cost;
+    vector<vector<int>> D;
     int N = 0;
     int K = 0;
-
-    // Replaces the global read_instance function
-    bool loadFromFile(const string& path); 
-
-private:
-    // These functions are now private helpers for loadFromFile
-    static vector<string> split_tokens(const string& line);
-    static inline int iround(double v);
 };
+
+// This is the "declaration" or "prototype" of the function.
+// It tells other .cpp files that this function exists and what
+// its signature is. The *implementation* (the body) will
+// be in Instance.cpp.
+bool read_instance(const string& path, Instance& inst);
+
