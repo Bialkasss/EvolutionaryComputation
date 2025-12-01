@@ -9,90 +9,11 @@
 #include "../core/Instance.h"
 #include "../core/Objective.h"
 #include "LocalSearch.h" // For IntraMoveType enum
+#include "LSHelpers.h"   // <--- Added shared helpers
 
 using namespace std;
 
-namespace {
-
-/**
- * @brief Helper struct for candidate-list local search.
- * Maintains tour state and fast lookups.
- */
-struct LSCandidateHelpers {
-    int K, N;
-    vector<int>& tour;
-    vector<int> pos;      // pos[node_id] -> index in tour, or -1
-    vector<bool> in_tour; // in_tour[node_id] -> true if in tour
-
-    LSCandidateHelpers(int n, int k, vector<int>& t) 
-        : N(n), K(k), tour(t), pos(n, -1), in_tour(n, false) {
-        build();
-    }
-    
-    void build() {
-        fill(pos.begin(), pos.end(), -1);
-        fill(in_tour.begin(), in_tour.end(), false);
-        for (int i = 0; i < K; ++i) {
-            int node = tour[i];
-            pos[node] = i;
-            in_tour[node] = true;
-        }
-    }
-};
-
-// --- DELTA CALCULATIONS (same as LocalSearch.cpp) ---
-
-static long long delta_inter_exchange(int u, int v, const LSCandidateHelpers& h, const Instance& I) {
-    const auto& D = I.D;
-    const auto& C = I.cost;
-    int K = h.K;
-    int i = h.pos[u];
-    
-    int prev_u = h.tour[(i - 1 + K) % K];
-    int next_u = h.tour[(i + 1) % K];
-
-    long long cost_delta = (long long)C[v] - C[u];
-    long long edge_delta = (long long)D[prev_u][v] + D[v][next_u] 
-                         - D[prev_u][u] - D[u][next_u];
-
-    return cost_delta + edge_delta;
-}
-
-static long long delta_intra_exchange_edges_2opt(int i, int j, const LSCandidateHelpers& h, const Instance& I) {
-    const auto& D = I.D;
-    int K = h.K;
-    if (j < i) swap(i, j);
-
-    int u = h.tour[i];
-    int v = h.tour[(i + 1) % K];
-    int x = h.tour[j];
-    int y = h.tour[(j + 1) % K];
-
-    if (v == x || u == y) return 0;
-
-    long long delta = (long long)D[u][x] + D[v][y] - D[u][v] - D[x][y];
-    return delta;
-}
-
-// --- MOVE APPLICATIONS (same as LocalSearch.cpp) ---
-
-static void apply_inter_exchange(LSCandidateHelpers& h, int u, int v) {
-    int i = h.pos[u];
-    h.tour[i] = v;
-    h.pos[u] = -1;
-    h.in_tour[u] = false;
-    h.pos[v] = i;
-    h.in_tour[v] = true;
-}
-
-static void apply_intra_exchange_edges_2opt(LSCandidateHelpers& h, int i, int j) {
-    int K = h.K;
-    if (j < i) swap(i, j);
-    reverse(h.tour.begin() + i + 1, h.tour.begin() + j + 1);
-    h.build();
-}
-
-} // end anonymous namespace
+// (Anonymous namespace with redundant helpers removed)
 
 namespace LocalSearchCandidate {
 
@@ -139,7 +60,10 @@ vector<int> local_search_steepest_candidate(
     mt19937& rng)
 {
     vector<int> tour = initial_tour;
-    LSCandidateHelpers h(I.N, I.K, tour);
+    
+    // Use the shared helper struct
+    LSHelpers h(I.N, I.K, tour);
+    
     long long current_obj = Objective::calculate(tour, I);
 
     // Only support EDGE_EXCHANGE_2OPT for now (best from previous assignment)
@@ -157,9 +81,6 @@ vector<int> local_search_steepest_candidate(
         // ============================================================
         // INTER-ROUTE CANDIDATE MOVES
         // ============================================================
-        // Strategy: For each selected node u, try swapping with its 
-        // candidate neighbors v (if v is not selected).
-        // This ensures at least one candidate edge is introduced.
         
         for (int pos = 0; pos < I.K; ++pos) {
             int u = tour[pos]; // selected node
@@ -168,6 +89,7 @@ vector<int> local_search_steepest_candidate(
             for (int v : candidates[u]) {
                 if (h.in_tour[v]) continue; // v must not be in tour
                 
+                // Use shared delta function
                 long long delta = delta_inter_exchange(u, v, h, I);
                 if (delta < best_delta) {
                     best_delta = delta;
@@ -180,7 +102,6 @@ vector<int> local_search_steepest_candidate(
 
         // ALSO: For each unselected node v, try swapping with its
         // candidate neighbors u (if u is selected).
-        // This catches the "other direction" of candidate edges.
         
         for (int v = 0; v < I.N; ++v) {
             if (h.in_tour[v]) continue; // v must not be in tour
@@ -189,6 +110,7 @@ vector<int> local_search_steepest_candidate(
             for (int u : candidates[v]) {
                 if (!h.in_tour[u]) continue; // u must be in tour
                 
+                // Use shared delta function
                 long long delta = delta_inter_exchange(u, v, h, I);
                 if (delta < best_delta) {
                     best_delta = delta;
@@ -202,32 +124,23 @@ vector<int> local_search_steepest_candidate(
         // ============================================================
         // INTRA-ROUTE CANDIDATE MOVES (2-OPT)
         // ============================================================
-        // Strategy: For each node u in tour, try 2-opt moves where
-        // one of the new edges involves a candidate of u.
-        //
-        // 2-opt removes edges (tour[i], tour[i+1]) and (tour[j], tour[j+1])
-        // and adds edges (tour[i], tour[j]) and (tour[i+1], tour[j+1]).
-        //
-        // We want at least one new edge to be a candidate edge.
         
         for (int i = 0; i < I.K; ++i) {
             int node_i = tour[i];
             
             // Case 1: New edge (tour[i], tour[j]) is a candidate edge
-            // So tour[j] must be a candidate of tour[i]
             for (int node_j : candidates[node_i]) {
-                if (!h.in_tour[node_j]) continue; // must be in tour
+                if (!h.in_tour[node_j]) continue; 
                 
                 int j = h.pos[node_j];
                 
-                // Check validity of 2-opt move
-                if (abs(j - i) <= 1) continue; // positions too close
-                if (i == 0 && j == I.K - 1) continue; // wraps entire tour
+                if (abs(j - i) <= 1) continue; 
+                if (i == 0 && j == I.K - 1) continue; 
                 
-                // Ensure i < j for delta calculation
                 int i_adj = i, j_adj = j;
                 if (i_adj > j_adj) swap(i_adj, j_adj);
                 
+                // Use shared delta function
                 long long delta = delta_intra_exchange_edges_2opt(i_adj, j_adj, h, I);
                 if (delta < best_delta) {
                     best_delta = delta;
@@ -238,21 +151,20 @@ vector<int> local_search_steepest_candidate(
             }
             
             // Case 2: New edge (tour[i+1], tour[j+1]) is a candidate edge
-            // So tour[j+1] must be a candidate of tour[i+1]
             int node_i_next = tour[(i + 1) % I.K];
             for (int node_j_next : candidates[node_i_next]) {
                 if (!h.in_tour[node_j_next]) continue;
                 
                 int j_next = h.pos[node_j_next];
-                int j = (j_next - 1 + I.K) % I.K; // j+1 = j_next, so j = j_next - 1
+                int j = (j_next - 1 + I.K) % I.K; 
                 
-                // Check validity
                 if (abs(j - i) <= 1) continue;
                 if (i == 0 && j == I.K - 1) continue;
                 
                 int i_adj = i, j_adj = j;
                 if (i_adj > j_adj) swap(i_adj, j_adj);
                 
+                // Use shared delta function
                 long long delta = delta_intra_exchange_edges_2opt(i_adj, j_adj, h, I);
                 if (delta < best_delta) {
                     best_delta = delta;

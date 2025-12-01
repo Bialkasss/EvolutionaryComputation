@@ -24,30 +24,30 @@
 #include "heuristics/Regret.h"
 #include "heuristics/LocalSearch.h"
 #include "heuristics/LocalSearchCandidate.h"
+#include "heuristics/ListMoves.h"
+#include "heuristics/MultipleStartLS_IterativeLS.h"
+#include "heuristics/LargeNeighbourhoodSearch.h"
 
 // Utility helpers
 #include "utils/Timer.h"
 #include "utils/ProgressBar.h"
 #include "utils/SvgWriter.h"
-// Note: utils/Helpers.h is probably only needed by the .cpp files
 
 using namespace std;
 
-/**
- * @brief Holds the results for a single named method.
- */
-struct MethodResult {
-    string method;
-    long long best_obj = LLONG_MAX;
-    vector<int> best_tour; 
-    vector<long long> all_objs;
-    vector<double> all_times_ms;
-};
+// /**
+//  * @brief Holds the results for a single named method.
+//  */
+// struct MethodResult {
+//     string method;
+//     long long best_obj = LLONG_MAX;
+//     vector<int> best_tour; 
+//     vector<long long> all_objs;
+//     vector<double> all_times_ms;
+// };
 
 /**
  * @brief Main experiment runner.
- * * Parses arguments, loads instances, runs all specified heuristics,
- * and writes summary CSVs, best tour files, and SVGs.
  */
 int main(int argc, char** argv) {
     ios::sync_with_stdio(false); 
@@ -96,14 +96,13 @@ int main(int argc, char** argv) {
     // --- Main Loop: Iterate Over Instance Files ---
     for (const auto& path : files) {
         Instance I;
-        // Use the new Instance class method to load
         if (!read_instance(path, I)) {
             cerr << "Failed to load instance: " << path << "\n";
             return 2;
         }
         cout << "Instance: " << I.name << "   N=" << I.N << "  K=" << I.K << "\n";
 
-        Stopwatch sw; // Use timer from utils/Timer.h
+        Stopwatch sw; 
 
         // --- Precompute Candidate List ---
         cout << "Precomputing candidate lists...\n";
@@ -129,7 +128,7 @@ int main(int argc, char** argv) {
         methods.push_back({"CH_GREEDY_CYCLE_REGRET2_WEIGHTED_reg1_objchange_1", LLONG_MAX, {}, {}, {}}); //9
         methods.push_back({"CH_GREEDY_CYCLE_REGRET2_WEIGHTED_reg2_objchange_1", LLONG_MAX, {}, {}, {}}); //10
         methods.push_back({"CH_GREEDY_CYCLE_REGRET2_WEIGHTED_reg1_objchange_2", LLONG_MAX, {}, {}, {}}); //11
-        // Local Search Methods
+        // Local Search Methods (Standard)
         methods.push_back({"LS_GREEDY_NODES_RANDOM_init", LLONG_MAX, {}, {}, {}}); // 12
         methods.push_back({"LS_GREEDY_NODES_GREEDY_init", LLONG_MAX, {}, {}, {}}); // 13
         methods.push_back({"LS_GREEDY_EDGES_RANDOM_init", LLONG_MAX, {}, {}, {}}); // 14
@@ -143,6 +142,18 @@ int main(int argc, char** argv) {
         methods.push_back({"LS_Rand_Steep_Edge_Cand5", LLONG_MAX, {}, {}, {}}); // 20
         methods.push_back({"LS_Rand_Steep_Edge_Cand10", LLONG_MAX, {}, {}, {}}); // 21
         methods.push_back({"LS_Rand_Steep_Edge_Cand15", LLONG_MAX, {}, {}, {}}); // 22
+
+        // List of Moves (LM)
+        methods.push_back({"LS_Rand_Steep_Edge_LM", LLONG_MAX, {}, {}, {}}); // 23
+        methods.push_back({"LS_Greedy_Steep_Edge_LM", LLONG_MAX, {}, {}, {}}); // 24
+
+        // MSLS and ILS
+        methods.push_back({"MSLS_LS_Steep_Edge_LM", LLONG_MAX, {}, {}, {}}); // 25
+        methods.push_back({"ILS_LS_Steep_Edge_LM",  LLONG_MAX, {}, {}, {}}); // 26
+
+        // LNS
+        methods.push_back({"LNS_With_LS",  LLONG_MAX, {}, {}, {}}); // 27
+        methods.push_back({"LNS_No_LS",  LLONG_MAX, {}, {}, {}}); // 28
 
 
         // Storage for starting tours for Local Search
@@ -159,10 +170,7 @@ int main(int argc, char** argv) {
                     print_progress((double)(r + 1) / runs_for_random, "Running CH_RANDOM...");
                 }
                 sw.reset();
-                
-                // Call namespaced function from heuristics/Greedy.h
                 auto tour = GreedyHeuristics::random_solution(I, rng, -1);
-                // Call namespaced function from core/Objective.h
                 long long obj = Objective::calculate(tour, I);
 
                 MR.all_objs.push_back(obj);
@@ -205,23 +213,21 @@ int main(int argc, char** argv) {
                 RUN_CH(10, RegretHeuristics::greed_cycle_regret2_weighted(I, start, rng, 2.0, 1.0));
                 RUN_CH(11, RegretHeuristics::greed_cycle_regret2_weighted(I, start, rng, 1.0, 2.0));
 
-                // Save one greedy tour for LS
+                // Save one greedy tour for LS (Method 9: Greedy Cycle Regret Weighted 1,1)
                 greedy_tours.push_back(methods[9].best_tour.empty() ? tour9 : methods[9].best_tour);
             }
         }
-        cerr << "\nDone." << endl;
+        cerr << "\nDone running 1-11." << endl;
 
-// --- Run: LOCAL SEARCH from Random Initialization ---
-        std::cout << endl << "Running local search...\n";
-        cout << "Running Local Search from " << runs_for_random << " random starts...\n";
-        int total_ls_rand_runs = random_tours.size() * 4; // 4 LS variants
+        // --- Run: LOCAL SEARCH from Random Initialization ---
+        std::cout << endl << "Running local search (Random Starts)...\n";
+        int total_ls_rand_runs = random_tours.size() * 5; // 4 Standard + 1 LM
         int current_ls_rand_run = 0;
         
-        // This macro definition for less code (this will run wieh every RUN_LS)
         #define RUN_LS(idx, start_tour, func_call) \
             current_ls_rand_run++; \
             print_progress((double)current_ls_rand_run / total_ls_rand_runs, \
-                           "LS from Random (" + methods[idx].method + ") " + to_string(i + 1) + "/" + to_string(random_tours.size())); \
+                           "LS-Rand (" + methods[idx].method + ") " + to_string(i + 1) + "/" + to_string(random_tours.size())); \
             sw.reset(); \
             auto tour##idx = func_call; \
             long long obj##idx = Objective::calculate(tour##idx, I); \
@@ -236,20 +242,23 @@ int main(int argc, char** argv) {
             RUN_LS(14, start_tour, LocalSearch::local_search_greedy(start_tour, I, LocalSearch::IntraMoveType::EDGE_EXCHANGE_2OPT, rng));
             RUN_LS(16, start_tour, LocalSearch::local_search_steepest(start_tour, I, LocalSearch::IntraMoveType::NODE_EXCHANGE, rng));
             RUN_LS(18, start_tour, LocalSearch::local_search_steepest(start_tour, I, LocalSearch::IntraMoveType::EDGE_EXCHANGE_2OPT, rng));
+            
+            // LM (List Moves)
+            RUN_LS(23, start_tour, LocalSearch::local_search_steepest_with_LM(start_tour, I, rng));
         }
-        cerr << "\nDone." << endl;
+        cerr << "\nDone running LS 12, 14, 16, 18." << endl;
 
 
         // --- Run: LOCAL SEARCH from Greedy Initialization ---
-        cout << "Running Local Search from " << greedy_tours.size() << " greedy starts...\n";
-        int total_ls_greedy_runs = greedy_tours.size() * 4; // 4 LS variants
+        cout << "Running local search (Greedy Starts)...\n";
+        int total_ls_greedy_runs = greedy_tours.size() * 5; // 4 Standard + 1 LM
         int current_ls_greedy_run = 0;
         
         #undef RUN_LS
         #define RUN_LS(idx, start_tour, func_call) \
             current_ls_greedy_run++; \
             print_progress((double)current_ls_greedy_run / total_ls_greedy_runs, \
-                           "LS from Greedy (" + methods[idx].method + ") " + to_string(i + 1) + "/" + to_string(greedy_tours.size())); \
+                           "LS-Greedy (" + methods[idx].method + ") " + to_string(i + 1) + "/" + to_string(greedy_tours.size())); \
             sw.reset(); \
             auto tour##idx = func_call; \
             long long obj##idx = Objective::calculate(tour##idx, I); \
@@ -264,12 +273,15 @@ int main(int argc, char** argv) {
             RUN_LS(15, start_tour, LocalSearch::local_search_greedy(start_tour, I, LocalSearch::IntraMoveType::EDGE_EXCHANGE_2OPT, rng));
             RUN_LS(17, start_tour, LocalSearch::local_search_steepest(start_tour, I, LocalSearch::IntraMoveType::NODE_EXCHANGE, rng));
             RUN_LS(19, start_tour, LocalSearch::local_search_steepest(start_tour, I, LocalSearch::IntraMoveType::EDGE_EXCHANGE_2OPT, rng));
+            
+            // LM (List Moves)
+            RUN_LS(24, start_tour, LocalSearch::local_search_steepest_with_LM(start_tour, I, rng));
         }
-        cerr << "\nDone." << endl;
+        cerr << "\nDone running 13, 15, 17, 19, 24." << endl;
 
 
-// --- Run: LOCAL SEARCH (Candidate List) from Random Initialization ---
-        cout << "Running Candidate List Local Search from " << runs_for_random << " random starts...\n";
+        // --- Run: LOCAL SEARCH (Candidate List) ---
+        cout << "Running Candidate List LS...\n";
         
         #define RUN_LS_CAND(idx, start_tour, cl_var, k_val) \
             current_ls_cand_run++; \
@@ -292,62 +304,124 @@ int main(int argc, char** argv) {
             RUN_LS_CAND(21, start_tour, cl_k10, 10);
             RUN_LS_CAND(22, start_tour, cl_k15, 15);
         }
-        cerr << "\nDone." << endl;
+        cerr << "\nDone running 20, 21, 22." << endl;
+        #undef RUN_LS_CAND 
+
+        // =====================================================================
+        //          METAHEURISTICS: MSLS, ILS, LNS
+        // =====================================================================
         
-        #undef RUN_LS_CAND // Undefine the new macro
+        // 1. MSLS (Multiple Start Local Search)
+        cout << "\nRunning MSLS (20 runs, 200 LS calls each)...\n";
+        double avg_msls_time_ms = Metaheuristics::MSLS(I, rng, methods[25], 20, 200); 
+        std::cout << "25 run" << endl;
+        cout << "Average MSLS time = " << avg_msls_time_ms << " ms. Using as budget for ILS/LNS.\n";
+
+        // 2. ILS (Iterated Local Search)
+        cout << "Running ILS (20 runs)...\n";
+        vector<int> ils_ls_runs_count;
+        Metaheuristics::ILS(I, rng, methods[26], avg_msls_time_ms, ils_ls_runs_count, 20, 3);
+        std::cout << "26 run" << endl;
+        
+        // Save ILS stats
+        string ils_csv = (filesystem::path(outdir) / (I.name + "_ILS_iterations.csv")).string();
+        ofstream ILS_F(ils_csv);
+        ILS_F << "run,ls_calls\n";
+        for(size_t r=0; r<ils_ls_runs_count.size(); ++r) ILS_F << r+1 << "," << ils_ls_runs_count[r] << "\n";
+        
+        // 3. LNS (Large Neighborhood Search)
+        // With Local Search
+        cout << "Running LNS with LS (20 runs)...\n";
+        string lns_ls_csv = (filesystem::path(outdir) / (I.name + "_LNS_With_LS_iterations.csv")).string();
+        ofstream LNS_LS_Stream(lns_ls_csv);
+        LNS_LS_Stream << "run,iterations\n";
+
+        for(int r=0; r<20; ++r) {
+            print_progress((r+1)/20.0, "LNS+LS");
+            sw.reset();
+            // LNS::run now returns {tour, iterations}
+            auto result = LNS::run(I, avg_msls_time_ms, true, rng);
+            double t = sw.elapsed_ms();
+            long long obj = Objective::calculate(result.first, I);
+            
+            LNS_LS_Stream << r+1 << "," << result.second << "\n";
+
+            methods[27].all_objs.push_back(obj);
+            methods[27].all_times_ms.push_back(t);
+            if(obj < methods[27].best_obj) { methods[27].best_obj = obj; methods[27].best_tour = result.first; }
+        }
+        cerr << endl;
+        std::cout << "27 run" << endl;
+
+
+        // Without Local Search
+        cout << "Running LNS without LS (20 runs)...\n";
+        string lns_no_ls_csv = (filesystem::path(outdir) / (I.name + "_LNS_No_LS_iterations.csv")).string();
+        ofstream LNS_NoLS_Stream(lns_no_ls_csv);
+        LNS_NoLS_Stream << "run,iterations\n";
+
+        for(int r=0; r<20; ++r) {
+            print_progress((r+1)/20.0, "LNS-NoLS");
+            sw.reset();
+            // LNS::run now returns {tour, iterations}
+            auto result = LNS::run(I, avg_msls_time_ms, false, rng);
+            double t = sw.elapsed_ms();
+            long long obj = Objective::calculate(result.first, I);
+            
+            LNS_NoLS_Stream << r+1 << "," << result.second << "\n";
+
+            methods[28].all_objs.push_back(obj);
+            methods[28].all_times_ms.push_back(t);
+            if(obj < methods[28].best_obj) { methods[28].best_obj = obj; methods[28].best_tour = result.first; }
+        }
+        cerr << endl;
+        std::cout << "28 run" << endl;
+
+
 
         // --- Summaries + Best Tours + SVGs ---
         string summary_csv = (filesystem::path(outdir) / (I.name + "_results_summary.csv")).string();
         ofstream S(summary_csv);
         S << "instance,method,runs,min_obj,max_obj,avg_obj,best_obj,min_time_ms,max_time_ms,avg_time_ms\n";
         
-        ofstream SSO(short_summary_obj_csv, ios::app); // Append mode
-        ofstream SST(short_summary_time_csv, ios::app); // Append mode
-
+        ofstream SSO(short_summary_obj_csv, ios::app);
+        ofstream SST(short_summary_time_csv, ios::app);
 
         for (auto &MR : methods) {
-            if (MR.all_objs.empty()) continue; // Skip methods that didn't run
+            if (MR.all_objs.empty()) continue; 
 
             if (!MR.best_tour.empty()) {
                 string why;
-                // Use namespaced check function
-                bool ok = Objective::check(MR.best_tour, I, &why);
-                if (!ok) cerr << "WARNING: best tour for " << MR.method << " failed check: " << why << "\n";
+                if (!Objective::check(MR.best_tour, I, &why)) {
+                    cerr << "WARNING: best tour for " << MR.method << " failed check: " << why << "\n";
+                }
             }
             
-            // Objective stats
             long long mn_obj = LLONG_MAX, mx_obj = LLONG_MIN; 
             long double sum_obj = 0;
             for (auto v : MR.all_objs) { mn_obj = min(mn_obj, v); mx_obj = max(mx_obj, v); sum_obj += v; }
             long double avg_obj = sum_obj / (long double)MR.all_objs.size();
 
-            // Time stats
             double mn_time = 1e300, mx_time = -1e300, sum_time = 0, avg_time = 0;
-            if (MR.all_times_ms.empty()) { // Handle random, which wasn't timed per run
+            if (MR.all_times_ms.empty()) { 
                 mn_time = 0; mx_time = 0; avg_time = 0;
             } else {
                 for (auto t : MR.all_times_ms) { mn_time = min(mn_time, t); mx_time = max(mx_time, t); sum_time += t; }
                 avg_time = sum_time / (double)MR.all_times_ms.size();
             }
 
-            // Instance-specific summary
             S << I.name << "," << MR.method << "," << MR.all_objs.size() << ","
               << mn_obj << "," << mx_obj << "," << (long long)(avg_obj + 0.5) << "," << MR.best_obj << ","
               << mn_time << "," << mx_time << "," << avg_time << "\n";
 
-            // Global summary (Objectives)
             SSO << I.name << "," << MR.method << ","
                << (long long)(avg_obj + 0.5)
-               << " (" << mn_obj << " ; " << mx_obj << ")"
-               << "\n";
+               << " (" << mn_obj << " ; " << mx_obj << ")" << "\n";
 
-            // Global summary (Times)
             SST << I.name << "," << MR.method << ","
                << fixed << setprecision(3) << avg_time
-               << " (" << mn_time << " ; " << mx_time << ")"
-               << "\n";
+               << " (" << mn_time << " ; " << mx_time << ")" << "\n";
 
-            // Write best tour .txt
             if (!MR.best_tour.empty()) {
                 string best_txt = (filesystem::path(outdir) / (I.name + "_best_" + MR.method + ".txt")).string();
                 ofstream B(best_txt);
@@ -357,15 +431,12 @@ int main(int argc, char** argv) {
                 }
                 B << "\n";
 
-                // Write best tour .svg
                 string svg = (filesystem::path(outdir) / (I.name + "_best_" + MR.method + ".svg")).string();
-                // Call namespaced function from utils/SvgWriter.h
                 save_svg(I, MR.best_tour, svg);
             }
         }
         cout << "Wrote: " << summary_csv << " and best tours/SVGs in " << outdir << "\n";
-        cout << "Appended to: " << short_summary_obj_csv << " and " << short_summary_time_csv << "\n";
-    } // End of instance loop
+    }
     
     return 0;
 }
