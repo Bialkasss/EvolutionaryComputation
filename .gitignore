@@ -3,3 +3,7 @@ out*
 HELPER.csv
 *.exe
 .vscode
+
+*.csv
+*.svg
+*.txt
