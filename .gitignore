@@ -7,3 +7,6 @@ HELPER.csv
 *.csv
 *.svg
 *.txt
+*.Rproj*
+*.Rhistory
+*.png
