@@ -10,9 +10,9 @@ using namespace std;
 // The struct definition is copied directly from main.cpp
 struct Instance {
     string name;
-    vector<Point> pts;
-    vector<int>    cost;
-    vector<vector<int>> D;
+    vector<Point> pts;   //for SVG
+    vector<int>    cost;   //cost of node
+    vector<vector<int>> D;  // integer-rounded distances
     int N = 0;
     int K = 0;
 };
