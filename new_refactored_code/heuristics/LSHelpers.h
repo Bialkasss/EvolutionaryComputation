@@ -126,3 +126,87 @@ inline void apply_intra_exchange_edges_2opt(LSHelpers& h, int i, int j) {
         end = (end - 1 + K) % K;
     }
 }
+
+namespace Repairs {
+    /**
+     * @brief Repair operator similar to Large Neighborhood Search (LNS) repair.
+     * * It greedily inserts missing nodes into the tour to reach size K based on a 
+     * weighted score of Regret and Cost.
+     * * @param tour The partial tour to repair.
+     * @param I The problem instance.
+     * @param rng Random number generator.
+     * @param w_reg Weight for the Regret value (default 1.0).
+     * @param w_cost Weight for the Cost value (default 1.0).
+     */
+    inline void repair_regret_weighted(vector<int>& tour, const Instance& I, mt19937& rng, double w_reg = 1.0, double w_cost = 1.0) {
+        const auto& D = I.D;
+        const auto& C = I.cost;
+        int K = I.K;
+        int N = I.N;
+
+        // 1. Identify used nodes based on the PARTIAL tour passed in
+        vector<char> used(N, 0);
+        for (int x : tour) used[x] = 1;
+
+        // 2. Loop until size is K
+        while ((int)tour.size() < K) {
+            int m = (int)tour.size();
+
+            double best_score = -1e300;
+            long long best1_for_tie = LLONG_MAX;
+            int best_j = -1;
+            int best_edge_i = -1;
+
+            for (int j = 0; j < N; ++j) if (!used[j]) {
+
+                long long cost_b1 = LLONG_MAX;
+                long long cost_b2 = LLONG_MAX;
+                int pos_b1 = -1;
+
+                for (int i = 0; i < m; ++i) {
+                    int u = tour[i];
+                    int v = tour[(i+1)%m];
+
+                    long long delta = (long long)D[u][j] + D[j][v] - D[u][v];
+                    long long total_cost = delta + C[j];
+
+                    if (total_cost < cost_b1) {
+                        cost_b2 = cost_b1;
+                        cost_b1 = total_cost;
+                        pos_b1 = i;
+                    } else if (total_cost < cost_b2) {
+                        cost_b2 = total_cost;
+                    }
+                }
+
+                if (cost_b2 == LLONG_MAX) cost_b2 = cost_b1;
+
+                long long regret = cost_b2 - cost_b1;
+
+                // Weighted Score
+                double score = w_reg * (double)regret - w_cost * (double)cost_b1;
+
+                if (score > best_score) {
+                    best_score = score;
+                    best_j = j;
+                    best_edge_i = pos_b1;
+                    best1_for_tie = cost_b1;
+                } else if (std::abs(score - best_score) < 1e-12) {
+                    if (cost_b1 < best1_for_tie ||
+                        (cost_b1 == best1_for_tie && uniform_int_distribution<int>(0,1)(rng))) {
+                        best_j = j;
+                        best_edge_i = pos_b1;
+                        best1_for_tie = cost_b1;
+                    }
+                }
+            }
+
+            if (best_j != -1) {
+                tour.insert(tour.begin() + (best_edge_i + 1), best_j);
+                used[best_j] = 1;
+            } else {
+                break;
+            }
+        }
+    }
+}

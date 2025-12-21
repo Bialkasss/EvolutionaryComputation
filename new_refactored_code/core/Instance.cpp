@@ -7,6 +7,8 @@
 #include <fstream>
 #include <iostream>
 #include <filesystem>
+#include <numeric>
+#include <algorithm>
 
 //
 // These are the *implementations* of the helper functions.
@@ -86,6 +88,11 @@ bool read_instance(const string& path, Instance& inst) {
     inst.K = (inst.N + 1) / 2; // we choose exactly 50% of nodes - or ceil(N/2) if N is odd
 
 
+#include <numeric>
+#include <algorithm>
+
+// ... (rest of the file is the same until the end of read_instance) ...
+
     // compute DISTANCE matrix
     inst.D.assign(inst.N, vector<int>(inst.N, 0)); // initialize distance matrix with zeros nxn size n is number of nodes
     for (int i = 0; i < inst.N; ++i) {
@@ -96,6 +103,23 @@ bool read_instance(const string& path, Instance& inst) {
             inst.D[i][j] = inst.D[j][i] = d; //symmetric matrix 
         }
     }
+
+    // Compute nearest neighbors for each node
+    inst.nearest_neighbors.assign(inst.N, vector<int>());
+    for (int i = 0; i < inst.N; ++i) {
+        vector<int> p(inst.N);
+        iota(p.begin(), p.end(), 0); // Fills p with 0, 1, 2, ..., N-1
+        sort(p.begin(), p.end(), [&](int a, int b) {
+            return inst.D[i][a] < inst.D[i][b];
+        });
+        // We don't need to include the node itself in its neighbors list
+        for (int node_idx : p) {
+            if (node_idx != i) {
+                inst.nearest_neighbors[i].push_back(node_idx);
+            }
+        }
+    }
+
     return true;
 }
 

@@ -13,6 +13,9 @@
 #include <cmath>        // For sqrt/fabs
 #include <tuple>        // For tie
 #include <unordered_set> // For save_svg
+#include <map>
+#include <sstream>
+#include <cctype>
 
 // Core problem and objective definitions
 #include "core/Instance.h"
@@ -28,6 +31,7 @@
 #include "heuristics/MultipleStartLS_IterativeLS.h"
 #include "heuristics/LargeNeighbourhoodSearch.h"
 #include "heuristics/HybridEvolutionary.h"
+#include "heuristics/OwnMethod.h"
 
 // Utility helpers
 #include "utils/Timer.h"
@@ -82,6 +86,84 @@ int main(int argc, char** argv) {
     filesystem::create_directories(outdir);
 
     mt19937 rng(seed); // Initialize random number generator
+
+    // Final table method names (user-specified order) and their corresponding internal method ids
+    vector<string> final_method_names = {
+        "Nearest Neighbour (append only)",
+        "Nearest Neighbour (insert anywhere)",
+        "Greedy Cycle",
+        "NN 2-regret",
+        "NN weighted 2-regret (same weights)",
+        "NN weighted 2-regret (regret weight = 2, objective change weight = 1)",
+        "NN weighted 2-regret (regret weight = 1, objective change weight = 2)",
+        "Greedy Cycle 2-regret",
+        "Greedy Cycle weighted 2-regret (same weights)",
+        "Greedy Cycle weighted 2-regret (regret weight = 2, objective change weight = 1)",
+        "Greedy Cycle weighted 2-regret (regret weight = 1, objective change weight = 2)",
+        "Local Search Greedy with Nodes and Random initialization",
+        "Local Search Greedy with Nodes and Greedy initialization",
+        "Local Search Greedy with Edges and Random initialization",
+        "Local Search Greedy with Edges and Greedy initialization",
+        "Local Search Steep with Nodes and Random initialization",
+        "Local Search Steep with Nodes and Greedy initialization",
+        "Local Search Steep with Edges and Random initialization",
+        "Local Search Steep with Edges and Greedy initialization",
+        "Local Search with Candidate List = 5",
+        "Local Search with Candidate List = 10",
+        "Local Search with Candidate List = 15",
+        "Steep Local Search with Edges and Random initialization and LM",
+        "MSLS",
+        "ILS",
+        "LNS with LS",
+        "LNS without LS",
+        "Evolutionary: operator 1",
+        "Evolutionary: operator 2 with LS",
+        "Evolutionary: operator 2 without LS",
+        "Own evolutionary 50p",
+        "Own evolutionary 57.5p"
+    };
+
+    // internal method names as used in `methods[].method` in this main file, in corresponding order
+    vector<string> internal_method_names = {
+        "CH_NN_END_ONLY",
+        "CH_NN_INSERT_ANYWHERE_PATH",
+        "CH_GREEDY_CYCLE_CHEAPEST_INSERTION",
+        "CH_NN_PATH_INSERT_ANYWHERE_REGRET2",
+        "CH_NN_PATH_INSERT_ANYWHERE_REGRET2_WEIGHTED_reg1_objchange_1",
+        "CH_NN_PATH_INSERT_ANYWHERE_REGRET2_WEIGHTED_reg2_objchange_1",
+        "CH_NN_PATH_INSERT_ANYWHERE_REGRET2_WEIGHTED_reg1_objchange_2",
+        "CH_GREEDY_CYCLE_REGRET2",
+        "CH_GREEDY_CYCLE_REGRET2_WEIGHTED_reg1_objchange_1",
+        "CH_GREEDY_CYCLE_REGRET2_WEIGHTED_reg2_objchange_1",
+        "CH_GREEDY_CYCLE_REGRET2_WEIGHTED_reg1_objchange_2",
+        "LS_GREEDY_NODES_RANDOM_init",
+        "LS_GREEDY_NODES_GREEDY_init",
+        "LS_GREEDY_EDGES_RANDOM_init",
+        "LS_GREEDY_EDGES_GREEDY_init",
+        "LS_STEEP_NODES_RANDOM_init",
+        "LS_STEEP_NODES_GREEDY_init",
+        "LS_STEEP_EDGES_RANDOM_init",
+        "LS_STEEP_EDGES_GREEDY_init",
+        "LS_Rand_Steep_Edge_Cand5",
+        "LS_Rand_Steep_Edge_Cand10",
+        "LS_Rand_Steep_Edge_Cand15",
+        "LS_Rand_Steep_Edge_LM",
+        "MSLS_LS_Steep_Edge_LM",
+        "ILS_LS_Steep_Edge_LM",
+        "LNS_With_LS",
+        "LNS_No_LS",
+        "Evo_op1",
+        "Evo_op2_LS",
+        "Evo_op2_NO_LS",
+        "OwnHybrid_50_50",
+        "Own_Hybrid_57.5"
+    };
+
+    // Accumulators per dataset ('TSPA' and 'TSPB') -> method name -> vector of objs/times
+    map<string, map<string, vector<long long>>> set_method_objs; // set -> method -> objs
+    map<string, map<string, vector<double>>> set_method_times;   // set -> method -> times
+    set_method_objs["TSPA"]; set_method_objs["TSPB"];
+    set_method_times["TSPA"]; set_method_times["TSPB"];
 
     // --- Prepare Summary CSVs ---
     string short_summary_obj_csv = (filesystem::path(outdir) / "all_results_summary_objectives.csv").string();
@@ -162,6 +244,9 @@ int main(int argc, char** argv) {
         methods.push_back({"Evo_op1", LLONG_MAX, {}, {}, {}}); //29
         methods.push_back({"Evo_op2_LS", LLONG_MAX, {}, {}, {}}); //30
         methods.push_back({"Evo_op2_NO_LS", LLONG_MAX, {}, {}, {}}); //31
+        methods.push_back({"OwnHybrid_50_50", LLONG_MAX, {}, {}, {}}); //32
+
+        methods.push_back({"Own_Hybrid_57.5", LLONG_MAX, {}, {}, {}}); //33
 
         // iterations storage per method (to record iterations returned by algorithms)
         vector<vector<int>> method_iters(methods.size());
@@ -426,11 +511,17 @@ int main(int argc, char** argv) {
         // 31: Evo Op2 (Regret Repair NO LS)
         RUN_EVO(31, "Evo_Op2_NoLS", Evolutionary::Evo_op2(I, rng, avg_msls_time_ms, false));
 
+        // 32,33: Own Hybrid 
+        RUN_EVO(32, "Own_Hybrid_50_50", Own::hybrid_evolutionary_algorithm(I, rng, avg_msls_time_ms, true, 0.5));
+        RUN_EVO(33, "Own_Hybrid_57.5", Own::hybrid_evolutionary_algorithm(I, rng, avg_msls_time_ms, true, 0.575));
+
+
+
         // Write per-instance EVO iterations CSV and a summary (min,max,avg)
         string evo_iters_csv = (filesystem::path(outdir) / (I.name + "_evo_iterations.csv")).string();
         ofstream EI(evo_iters_csv);
         EI << "method,run,iterations\n";
-        for (int idx : {29,30,31}) {
+        for (int idx : {29,30,31,32,33}) {
             for (size_t r = 0; r < method_iters[idx].size(); ++r) {
                 EI << methods[idx].method << "," << (r+1) << "," << method_iters[idx][r] << "\n";
             }
@@ -440,7 +531,7 @@ int main(int argc, char** argv) {
         string evo_iters_summary = (filesystem::path(outdir) / (I.name + "_evo_iterations_summary.csv")).string();
         ofstream EIS(evo_iters_summary);
         EIS << "method,min,max,avg\n";
-        for (int idx : {29,30,31}) {
+        for (int idx : {29,30,31,32,33}) {
             auto &vec = method_iters[idx];
             if (vec.empty()) continue;
             int mn = vec[0], mx = vec[0];
@@ -508,8 +599,101 @@ int main(int argc, char** argv) {
                 save_svg(I, MR.best_tour, svg);
             }
         }
+
+        // --- Accumulate results for final tables (TSPA / TSPB) ---
+        string set_name = "";
+        // detect dataset by file path or instance name
+        string path_upper = path;
+        for (auto &c : path_upper) c = toupper((unsigned char)c);
+        string iname_upper = I.name;
+        for (auto &c : iname_upper) c = toupper((unsigned char)c);
+        if (path_upper.find("TSPA") != string::npos || iname_upper.find("TSPA") != string::npos) set_name = "TSPA";
+        else if (path_upper.find("TSPB") != string::npos || iname_upper.find("TSPB") != string::npos) set_name = "TSPB";
+
+        if (!set_name.empty()) {
+            for (size_t mi = 0; mi < final_method_names.size(); ++mi) {
+                string final_name = final_method_names[mi];
+                string internal_name = internal_method_names.size() > mi ? internal_method_names[mi] : string();
+                // find method in current methods vector
+                bool found = false;
+                for (auto &MR : methods) {
+                    if (MR.method == internal_name) {
+                        // append all objs and times
+                        for (auto v : MR.all_objs) set_method_objs[set_name][final_name].push_back(v);
+                        for (auto t : MR.all_times_ms) set_method_times[set_name][final_name].push_back(t);
+                        found = true;
+                        break;
+                    }
+                }
+                // if not found, leave vector empty; later will write 0
+            }
+        }
+
         cout << "Wrote: " << summary_csv << " and best tours/SVGs in " << outdir << "\n";
     }
     
+    // --- Write final tables (aggregated per dataset TSPA / TSPB) ---
+    string final_results_csv = (filesystem::path(outdir) / "final_table_results.csv").string();
+    ofstream FR(final_results_csv);
+    FR << "method,TSPA,TSPB\n";
+    for (auto &final_name : final_method_names) {
+        // TSPA
+        auto &vA = set_method_objs["TSPA"][final_name];
+        string cellA;
+        if (vA.empty()) cellA = "0";
+        else {
+            long long mn = vA[0], mx = vA[0]; long double sum = 0;
+            for (auto x : vA) { mn = min(mn, x); mx = max(mx, x); sum += x; }
+            long long avg = (long long)(sum / vA.size() + 0.5);
+            cellA = to_string(avg) + " (" + to_string(mn) + " ; " + to_string(mx) + ")";
+        }
+
+        // TSPB
+        auto &vB = set_method_objs["TSPB"][final_name];
+        string cellB;
+        if (vB.empty()) cellB = "0";
+        else {
+            long long mn = vB[0], mx = vB[0]; long double sum = 0;
+            for (auto x : vB) { mn = min(mn, x); mx = max(mx, x); sum += x; }
+            long long avg = (long long)(sum / vB.size() + 0.5);
+            cellB = to_string(avg) + " (" + to_string(mn) + " ; " + to_string(mx) + ")";
+        }
+
+        FR << '"' << final_name << '"' << "," << cellA << "," << cellB << "\n";
+    }
+    FR.close();
+
+    string final_time_csv = (filesystem::path(outdir) / "final_table_time.csv").string();
+    ofstream FT(final_time_csv);
+    FT << "method,TSPA,TSPB\n";
+    for (auto &final_name : final_method_names) {
+        auto &tA = set_method_times["TSPA"][final_name];
+        string cellA;
+        if (tA.empty()) cellA = "0";
+        else {
+            double mn = tA[0], mx = tA[0], sum = 0;
+            for (auto x : tA) { mn = min(mn, x); mx = max(mx, x); sum += x; }
+            double avg = sum / tA.size();
+            std::ostringstream oss; oss << fixed << setprecision(3) << avg << " (" << mn << " ; " << mx << ")";
+            cellA = oss.str();
+        }
+
+        auto &tB = set_method_times["TSPB"][final_name];
+        string cellB;
+        if (tB.empty()) cellB = "0";
+        else {
+            double mn = tB[0], mx = tB[0], sum = 0;
+            for (auto x : tB) { mn = min(mn, x); mx = max(mx, x); sum += x; }
+            double avg = sum / tB.size();
+            std::ostringstream oss; oss << fixed << setprecision(3) << avg << " (" << mn << " ; " << mx << ")";
+            cellB = oss.str();
+        }
+
+        FT << '"' << final_name << '"' << "," << cellA << "," << cellB << "\n";
+    }
+    FT.close();
+
+    cout << "Wrote final tables: " << final_results_csv << ", " << final_time_csv << "\n";
+
     return 0;
 }

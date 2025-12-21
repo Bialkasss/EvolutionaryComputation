@@ -13,6 +13,7 @@ struct Instance {
     vector<Point> pts;   //for SVG
     vector<int>    cost;   //cost of node
     vector<vector<int>> D;  // integer-rounded distances
+    vector<vector<int>> nearest_neighbors; // nearest neighbors for each node
     int N = 0;
     int K = 0;
 };
